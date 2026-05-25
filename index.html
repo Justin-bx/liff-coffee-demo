@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>智慧格子櫃點餐</title>
-  <!-- LINE LIFF SDK（填入 LIFF_ID 後接上 LINE） -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -44,11 +42,9 @@
     .loading-text  { color: var(--white); font-size: 16px; opacity: 0.8; }
     @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
 
-    /* ── DEMO banner ── */
+    /* ── DEMO banner (removed) ── */
     .demo-banner {
-      display: none; background: #FFF3CD; border-bottom: 1px solid #FFC107;
-      padding: 8px 16px; font-size: 12px; color: #856404;
-      align-items: center; gap: 6px;
+      display: none !important;
     }
 
     /* ── Header ── */
@@ -222,10 +218,6 @@
     <div class="loading-text">載入中…</div>
   </div>
 
-  <div class="demo-banner" id="demoBanner">
-    ⚠️ DEMO 模式（瀏覽器預覽）— 在 LINE 開啟才會讀取真實用戶資料
-  </div>
-
   <!-- Header -->
   <div class="header">
     <div class="header-left">
@@ -233,7 +225,7 @@
       <div class="user-avatar-ph" id="userAvatarPh">☕</div>
       <div>
         <div class="header-title" id="headerTitle">智慧格子櫃點餐</div>
-        <div class="header-subtitle" id="headerSub">載入中…</div>
+        <div class="header-subtitle" id="headerSub">請選擇您的飲品</div>
       </div>
     </div>
     <button class="cart-btn" id="cartBtn" onclick="goToCart()">
@@ -278,20 +270,12 @@
     </div>
     <div class="qr-items-summary" id="qrItemsSummary"></div>
     <div class="qr-actions">
-      <button class="close-btn" id="closeBtn" onclick="closeApp()">
-        ✅ 完成・關閉視窗
-      </button>
       <button class="new-order-btn" onclick="resetOrder()">🔄 重新點餐</button>
     </div>
   </div>
 
 </div>
 <script>
-// ════════════════════════════════════════
-//  LIFF 設定
-// ════════════════════════════════════════
-const LIFF_ID = 'YOUR_LIFF_ID';  // ← 填入你的 LIFF ID
-
 // ════════════════════════════════════════
 //  格子櫃代碼（固定 12 個）
 // ════════════════════════════════════════
@@ -314,8 +298,6 @@ const MENU = [
 // ── 狀態 ──
 let cart        = {};
 let orderNumber = '';
-let lineUser    = null;
-let isInLine    = false;
 
 // ════════════════════════════════════════
 //  訂單儲存（localStorage）
@@ -328,60 +310,12 @@ function saveOrder(id, data) {
   localStorage.setItem('liff_orders', JSON.stringify(o));
 }
 
-// ── 分配格子（round-robin 輪流，從上次用過的下一格開始）──
-function assignLocker() {
-  const inUse = new Set(
-    Object.values(getOrders())
-      .filter(o => o.status !== 'picked_up')
-      .map(o => o.locker)
-      .filter(Boolean)
-  );
-  const lastIdx = parseInt(localStorage.getItem('last_locker_idx') ?? '-1', 10);
-  for (let i = 1; i <= LOCKERS.length; i++) {
-    const idx = (lastIdx + i) % LOCKERS.length;
-    if (!inUse.has(LOCKERS[idx])) {
-      localStorage.setItem('last_locker_idx', idx);
-      return LOCKERS[idx];
-    }
-  }
-  // 全滿時從下一格強制分配
-  const idx = (lastIdx + 1) % LOCKERS.length;
-  localStorage.setItem('last_locker_idx', idx);
-  return LOCKERS[idx];
-}
-
 // ════════════════════════════════════════
-//  LIFF 初始化
+//  初始化
 // ════════════════════════════════════════
-async function initApp() {
-  try {
-    await liff.init({ liffId: LIFF_ID });
-    isInLine = liff.isInClient();
-    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
-    lineUser = await liff.getProfile();
-    applyUser(lineUser);
-    if (isInLine) document.getElementById('closeBtn').classList.add('show');
-  } catch(e) {
-    console.warn('[LIFF] demo mode:', e.message);
-    lineUser = { userId: 'demo-001', displayName: 'DEMO 用戶', pictureUrl: '' };
-    document.getElementById('demoBanner').style.display = 'flex';
-    document.getElementById('headerSub').textContent = '請選擇您的飲品';
-  }
+function initApp() {
   renderMenu();
   updateCartUI();
-  hideLoading();
-}
-
-function applyUser(u) {
-  if (u.pictureUrl) {
-    document.getElementById('userAvatar').src = u.pictureUrl;
-    document.getElementById('userAvatar').style.display = 'block';
-    document.getElementById('userAvatarPh').style.display = 'none';
-  }
-  document.getElementById('headerSub').textContent = `Hi, ${u.displayName}！`;
-}
-
-function hideLoading() {
   const el = document.getElementById('loadingOverlay');
   el.classList.add('hidden');
   setTimeout(() => el.remove(), 400);
@@ -461,8 +395,7 @@ function goToCart() {
 
 function goToMenu() {
   document.getElementById('headerTitle').textContent = '智慧格子櫃點餐';
-  document.getElementById('headerSub').textContent   =
-    lineUser && lineUser.displayName !== 'DEMO 用戶' ? `Hi, ${lineUser.displayName}！` : '請選擇您的飲品';
+  document.getElementById('headerSub').textContent   = '請選擇您的飲品';
   document.getElementById('cartBtn').style.display = 'flex';
   showScreen('Menu');
 }
@@ -470,22 +403,22 @@ function goToMenu() {
 // ════════════════════════════════════════
 //  下單
 // ════════════════════════════════════════
-async function placeOrder() {
+function placeOrder() {
   const letters = 'ABCDEFGH';
   orderNumber = letters[Math.floor(Math.random()*letters.length)] +
                 String(Math.floor(Math.random()*99)+1).padStart(3,'0');
 
   const orderData = {
     id:     orderNumber,
-    u:      lineUser?.displayName || 'DEMO 用戶',
-    pic:    lineUser?.pictureUrl  || '',
-    uid:    lineUser?.userId      || 'demo',
+    u:      '訪客',
+    pic:    '',
+    uid:    'web-' + orderNumber,
     items:  Object.entries(cart).map(([id,qty])=>{
               const m = MENU.find(i=>i.id===id);
               return { n: m.name, e: m.emoji, q: qty, v: m.price };
             }),
     t:      calcTotal(),
-    locker: '',       // 格子由員工放餐時分配，避免多人同時下單衝突
+    locker: '',
     status: 'pending',
     ts:     new Date().toISOString().slice(0,16),
   };
@@ -497,8 +430,6 @@ async function placeOrder() {
   document.getElementById('headerSub').textContent   = `訂單 #${orderNumber}`;
   document.getElementById('cartBtn').style.display   = 'none';
   showScreen('QR');
-
-  await sendOrderMessage();
 }
 
 // ════════════════════════════════════════
@@ -531,22 +462,6 @@ function generateQR(orderData) {
 // ════════════════════════════════════════
 //  LINE sendMessages
 // ════════════════════════════════════════
-async function sendOrderMessage() {
-  if (!isInLine) return;
-  const itemsText = Object.entries(cart).map(([id,qty])=>{
-    const m = MENU.find(i=>i.id===id);
-    return `${m.emoji} ${m.name} ×${qty}  $${m.price*qty}`;
-  }).join('\n');
-  try {
-    await liff.sendMessages([{ type:'text', text:
-      `✅ 訂單已成立！\n取餐號碼：#${orderNumber}\n` +
-      `─────────\n${itemsText}\n─────────\n合計：$${calcTotal()}\n\n📦 服務人員備餐後請掃碼取餐`
-    }]);
-  } catch(e) { console.warn('[LIFF] sendMessages:', e.message); }
-}
-
-function closeApp() { if (liff.isInClient()) liff.closeWindow(); }
-
 function resetOrder() {
   cart = {}; orderNumber = '';
   document.getElementById('qrcode').innerHTML = '';
