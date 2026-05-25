@@ -57,7 +57,9 @@
     .s-placed    { background: #E8F5E9; color: var(--green);  border: 1.5px solid #A5D6A7; }
     .s-picked_up { background: #F5F5F5; color: var(--gray);   border: 1.5px solid #E0E0E0; }
 
-    .order-time { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+    .order-time { font-size: 11px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .expire-badge { font-size: 10px; padding: 1px 7px; border-radius: 8px; font-weight: 700; background: #FFF3E0; color: var(--yellow); border: 1px solid #FFD180; }
+    .expire-badge.urgent { background: #FFEBEE; color: var(--red); border-color: #FFCDD2; }
 
     .item-list { margin-bottom: 8px; }
     .item-row  { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
@@ -114,7 +116,19 @@ function updateOrder(id, patch) {
   if (o[id]) { Object.assign(o[id], patch); localStorage.setItem('liff_orders', JSON.stringify(o)); }
 }
 
+function autoExpire() {
+  const o = getOrders();
+  const now = Date.now();
+  let changed = false;
+  Object.entries(o).forEach(([id, order]) => {
+    const ts = new Date(order.ts + (order.ts.length === 16 ? ':00' : '')).getTime();
+    if (now - ts > 15 * 60 * 1000) { delete o[id]; changed = true; }
+  });
+  if (changed) localStorage.setItem('liff_orders', JSON.stringify(o));
+}
+
 function refresh() {
+  autoExpire();
   allOrders = getOrders();
   const all = Object.values(allOrders);
   const active = all.filter(o => o.status !== 'picked_up').length;
@@ -157,7 +171,7 @@ function cardHTML(o) {
             <span class="locker-tag">${locker || '—'}</span>
             ${badge}
           </div>
-          <div class="order-time">訂單 #${o.id}　${fmtTime(o.ts)}</div>
+          <div class="order-time">訂單 #${o.id}　${fmtTime(o.ts)}${expireBadge(o.ts)}</div>
           <div class="item-list">${itemsHTML}</div>
           <div class="total-row">
             <span class="total-label">合計</span>
@@ -203,6 +217,15 @@ function buildQR(o) {
 function markPlaced(id) {
   updateOrder(id, { status: 'placed', placedAt: new Date().toISOString().slice(0,16) });
   refresh();
+}
+
+function expireBadge(iso) {
+  if (!iso) return '';
+  const ts = new Date(iso + (iso.length === 16 ? ':00' : '')).getTime();
+  const remaining = Math.ceil((15 * 60 * 1000 - (Date.now() - ts)) / 60000);
+  if (remaining <= 0) return '';
+  const urgent = remaining <= 5;
+  return `<span class="expire-badge${urgent ? ' urgent' : ''}">剩 ${remaining} 分鐘</span>`;
 }
 
 function fmtTime(iso) {
