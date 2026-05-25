@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>訂單後台管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brown:  #4A2C1A; --cream: #F9F4EE; --border: #EDE4D8;
+      --white:  #FFFFFF; --text:  #2D1A0E; --muted:  #9B7B5E;
+      --green:  #06C755; --yellow:#FF9500; --red:    #E8622A; --gray: #8E8E93;
+    }
+    body {
+      font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      background: #F0EDE8; min-height: 100vh;
+    }
+    .header {
+      background: var(--brown); color: var(--white); padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .header-title { font-size: 17px; font-weight: 700; }
+    .header-sub   { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .staff-badge  {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 12px; padding: 4px 10px; font-size: 11px; font-weight: 600;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex; background: var(--white); border-bottom: 1px solid var(--border);
+      position: sticky; top: 57px; z-index: 90;
+    }
+    .tab {
+      flex: 1; padding: 12px 4px; border: none; background: none;
+      font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .tab.active { color: var(--brown); border-bottom-color: var(--brown); }
+    .tab-count  {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--border); color: var(--text);
+      border-radius: 10px; min-width: 18px; height: 18px;
+      font-size: 11px; padding: 0 5px; margin-left: 4px;
+    }
+    .tab.active .tab-count { background: var(--brown); color: var(--white); }
+
+    /* ── Content ── */
+    .content { padding: 12px; max-width: 720px; margin: 0 auto; }
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 4px 4px; margin-bottom: 4px;
+    }
+    .count-label  { font-size: 12px; color: var(--muted); }
+    .refresh-btn  {
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 5px 12px; font-size: 12px;
+      color: var(--muted); cursor: pointer;
+    }
+    .refresh-btn:hover { border-color: var(--brown); color: var(--brown); }
+
+    /* ── Empty ── */
+    .empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 15px; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Order Card ── */
+    .order-card {
+      background: var(--white); border-radius: 16px; margin-bottom: 12px;
+      overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);} }
+
+    .card-body  { display: flex; gap: 12px; padding: 16px; }
+    .card-main  { flex: 1; min-width: 0; }
+    .card-qr    { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .qr-cell    {
+      width: 90px; height: 90px; border: 2px solid var(--brown); border-radius: 10px;
+      overflow: hidden; background: var(--white);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qr-cell canvas, .qr-cell img { width: 86px !important; height: 86px !important; }
+    .qr-label   { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.3; }
+    .qr-code-text {
+      font-size: 10px; font-family: monospace; color: var(--brown);
+      font-weight: 700; text-align: center; word-break: break-all;
+    }
+
+    .order-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+    }
+    .order-num  { font-size: 20px; font-weight: 900; color: var(--brown); letter-spacing: 2px; }
+    .order-time { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+
+    .status-badge   { border-radius: 14px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+    .s-pending      { background:#FFF3E0; color:var(--yellow); border:1.5px solid #FFD180; }
+    .s-placed       { background:#E8F5E9; color:var(--green);  border:1.5px solid #A5D6A7; }
+    .s-picked_up    { background:#F5F5F5; color:var(--gray);   border:1.5px solid #E0E0E0; }
+
+    .locker-row     {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .locker-tag     {
+      background: var(--brown); color: var(--white);
+      border-radius: 8px; padding: 3px 10px;
+      font-size: 12px; font-weight: 700; font-family: monospace;
+    }
+
+    .cust-row   { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .cust-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      object-fit: cover; border: 1.5px solid var(--border);
+    }
+    .cust-ph    {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--cream); display: flex; align-items: center;
+      justify-content: center; font-size: 13px;
+    }
+    .cust-name  { font-size: 14px; font-weight: 600; }
+
+    .item-list  { margin-bottom: 8px; }
+    .item-row   {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--border);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-left  { display: flex; align-items: center; gap: 6px; }
+    .item-qty   {
+      background: var(--brown); color: var(--white);
+      border-radius: 8px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+    }
+    .total-row  {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 8px; border-top: 1.5px solid var(--border); margin-top: 4px;
+    }
+    .total-label { font-size: 13px; color: var(--muted); }
+    .total-amt   { font-size: 16px; font-weight: 900; color: var(--red); }
+
+    /* ── Action bar ── */
+    .card-action {
+      padding: 12px 16px; border-top: 1px solid var(--border);
+      background: var(--cream); display: flex; align-items: center; gap: 8px;
+    }
+    .locker-input {
+      width: 70px; padding: 8px 10px; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center;
+      background: var(--white);
+    }
+    .locker-input:focus { outline: none; border-color: var(--brown); }
+    .locker-hint  { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .place-btn    {
+      flex: 1; background: var(--green); color: var(--white);
+      border: none; border-radius: 12px; padding: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s;
+    }
+    .place-btn:hover { background: #05a847; }
+    .placed-info  { font-size: 13px; color: var(--green); font-weight: 600; }
+    .done-info    { font-size: 13px; color: var(--gray); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">📋 訂單後台管理</div>
+    <div class="header-sub">格子櫃點餐管理系統</div>
+  </div>
+  <div class="staff-badge">STAFF</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-f="all"       onclick="setFilter('all')">全部<span class="tab-count" id="cnt-all">0</span></button>
+  <button class="tab"        data-f="pending"   onclick="setFilter('pending')">待放餐<span class="tab-count" id="cnt-pending">0</span></button>
+  <button class="tab"        data-f="placed"    onclick="setFilter('placed')">已放入<span class="tab-count" id="cnt-placed">0</span></button>
+  <button class="tab"        data-f="picked_up" onclick="setFilter('picked_up')">已取餐<span class="tab-count" id="cnt-picked_up">0</span></button>
+</div>
+
+<div class="content">
+  <div class="toolbar">
+    <span class="count-label" id="countLabel">—</span>
+    <button class="refresh-btn" onclick="refresh()">↻ 重新整理</button>
+  </div>
+  <div id="orderList"></div>
+</div>
+
+<script>
+let allOrders  = {};
+let filter     = 'all';
+
+// ── 讀取 localStorage ──
+function getOrders() {
+  try { return JSON.parse(localStorage.getItem('liff_orders') || '{}'); } catch { return {}; }
+}
+function updateOrder(id, patch) {
+  const o = getOrders();
+  if (o[id]) { Object.assign(o[id], patch); localStorage.setItem('liff_orders', JSON.stringify(o)); }
+}
+
+// ── 自動輪詢（1.5s）──
+function startPolling() { setInterval(refresh, 1500); }
+
+function refresh() {
+  allOrders = getOrders();
+  updateCounts();
+  renderList();
+}
+
+function updateCounts() {
+  const all = Object.values(allOrders);
+  document.getElementById('cnt-all').textContent      = all.length;
+  document.getElementById('cnt-pending').textContent  = all.filter(o=>o.status==='pending').length;
+  document.getElementById('cnt-placed').textContent   = all.filter(o=>o.status==='placed').length;
+  document.getElementById('cnt-picked_up').textContent= all.filter(o=>o.status==='picked_up').length;
+  document.getElementById('countLabel').textContent   = `共 ${all.length} 筆訂單`;
+}
+
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.f === f));
+  renderList();
+}
+
+// ════════════════════════════════════════
+//  渲染訂單列表
+// ════════════════════════════════════════
+function renderList() {
+  const list = document.getElementById('orderList');
+  let orders = Object.values(allOrders).sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+  if (filter !== 'all') orders = orders.filter(o => o.status === filter);
+
+  if (!orders.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">${filter==='all'?'📭':'✅'}</div>目前沒有訂單</div>`;
+    return;
+  }
+
+  list.innerHTML = orders.map(o => cardHTML(o)).join('');
+  // innerHTML 替換後重新建 QR（每次 render 都要建，因為 DOM 已重置）
+  orders.forEach(o => buildQR(o));
+}
+
+function cardHTML(o) {
+  const statusBadge = {
+    pending:   `<span class="status-badge s-pending">⏳ 待放餐</span>`,
+    placed:    `<span class="status-badge s-placed">✅ 已放入</span>`,
+    picked_up: `<span class="status-badge s-picked_up">🎉 已取餐</span>`,
+  }[o.status] || '';
+
+  const avatarHTML = o.pic
+    ? `<img class="cust-avatar" src="${o.pic}" onerror="this.style.display='none'">`
+    : `<div class="cust-ph">👤</div>`;
+
+  const itemsHTML = (o.items||[]).map(i => `
+    <div class="item-row">
+      <div class="item-left">${i.e} ${i.n}<span class="item-qty">×${i.q}</span></div>
+      <span>$${i.v*i.q}</span>
+    </div>`).join('');
+
+  return `
+    <div class="order-card" id="card-${o.id}">
+      <div class="card-body">
+        <div class="card-main">
+          <div class="order-header">
+            <span class="order-num">#${o.id}</span>${statusBadge}
+          </div>
+          <div class="order-time">下單：${fmtTime(o.ts)}</div>
+          <div class="locker-row">
+            <span style="font-size:12px;color:var(--muted)">格子代碼</span>
+            <span class="locker-tag">${(o.locker||'—').toUpperCase()}</span>
+          </div>
+          <div class="cust-row">${avatarHTML}<span class="cust-name">${o.u||'—'}</span></div>
+          <div class="item-list">${itemsHTML}</div>
+          <div class="total-row">
+            <span class="total-label">合計</span>
+            <span class="total-amt">$${o.t}</span>
+          </div>
+        </div>
+        <div class="card-qr">
+          <div class="qr-cell" id="qr-${o.id}"></div>
+          <div class="qr-label">客戶取餐 QR</div>
+          <div class="qr-code-text">${(o.locker||'').toUpperCase()}</div>
+        </div>
+      </div>
+      ${actionBar(o)}
+    </div>`;
+}
+
+function actionBar(o) {
+  if (o.status === 'pending') return `
+    <div class="card-action">
+      <span class="locker-hint">格子號</span>
+      <input class="locker-input" id="slot-${o.id}" type="text"
+             placeholder="${(o.locker||'').toUpperCase().replace('EVERBRITE','')}"
+             value="${(o.locker||'').toUpperCase().replace('EVERBRITE','')}">
+      <button class="place-btn" onclick="markPlaced('${o.id}')">📦 已放入格子</button>
+    </div>`;
+  if (o.status === 'placed') return `
+    <div class="card-action">
+      <span class="placed-info">✅ 已放入 ${(o.locker||'').toUpperCase()} — 等待客戶取餐</span>
+    </div>`;
+  return `<div class="card-action"><span class="done-info">🎉 客戶已完成取餐</span></div>`;
+}
+
+// ── 產生 QR（格子代碼）──
+function buildQR(o) {
+  const container = document.getElementById('qr-' + o.id);
+  if (!container || container.childElementCount > 0) return;
+  try {
+    new QRCode(container, {
+      text: o.locker || o.id,
+      width: 86, height: 86,
+      colorDark: '#4A2C1A', colorLight: '#FFFFFF',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch(e) { container.textContent = '?'; }
+}
+
+// ── 標記放入格子 ──
+function markPlaced(orderId) {
+  updateOrder(orderId, {
+    status:   'placed',
+    placedAt: new Date().toISOString().slice(0,16),
+  });
+  delete qrDone[orderId];
+  refresh();
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + (iso.length===16?':00':''));
+  if (isNaN(d)) return iso;
+  return d.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// ── 啟動 ──
+refresh();
+startPolling();
+</script>
+</body>
+</html>

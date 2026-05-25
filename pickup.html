@@ -3,388 +3,328 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>格子櫃取餐確認</title>
+  <title>格子櫃取餐</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --brown:    #4A2C1A;
-      --green:    #06C755;
-      --green-dk: #05a847;
-      --yellow:   #FF9500;
-      --red:      #E8622A;
-      --cream:    #F9F4EE;
-      --muted:    #9B7B5E;
-      --border:   #EDE4D8;
-      --white:    #FFFFFF;
-      --text:     #2D1A0E;
+      --brown:  #4A2C1A; --cream:  #F9F4EE; --border: #EDE4D8;
+      --white:  #FFFFFF; --text:   #2D1A0E; --muted:  #9B7B5E;
+      --green:  #06C755; --yellow: #FF9500; --red:    #E8622A;
     }
-
     body {
       font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-      background: #F0F4F0;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 0 0 40px;
+      background: #F0F4F0; min-height: 100vh;
+      display: flex; justify-content: center;
     }
-
-    .page {
-      width: 100%;
-      max-width: 480px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+    .page { width: 100%; max-width: 480px; min-height: 100vh; display: flex; flex-direction: column; }
 
     /* ── Header ── */
     .header {
-      background: var(--brown);
-      color: var(--white);
-      padding: 14px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      background: var(--brown); color: var(--white); padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
-    .header-title   { font-size: 16px; font-weight: 700; }
-    .header-sub     { font-size: 11px; opacity: 0.6; margin-top: 2px; }
-    .staff-badge    {
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 12px;
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+    .header-title { font-size: 16px; font-weight: 700; }
+    .header-sub   { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .staff-badge  {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 12px; padding: 4px 10px; font-size: 11px; font-weight: 600;
     }
 
-    /* ── Main content ── */
+    /* ── Content ── */
     .content { flex: 1; padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; }
 
-    /* ── Status Card ── */
-    .status-card {
-      background: var(--white);
-      border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    /* ── Cards ── */
+    .card {
+      background: var(--white); border-radius: 16px; padding: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      animation: fadeIn 0.3s ease both;
     }
-    .order-num-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-    .order-num       { font-size: 36px; font-weight: 900; color: var(--brown); letter-spacing: 3px; }
-    .order-time      { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    .status-badge {
-      border-radius: 20px;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 700;
-      text-align: center;
-    }
-    .status-badge.pending   { background: #FFF3E0; color: var(--yellow); border: 2px solid #FFD180; }
-    .status-badge.confirmed { background: #E8F5E9; color: var(--green);  border: 2px solid #A5D6A7; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+    .card:nth-child(2) { animation-delay: 0.05s; }
+    .card:nth-child(3) { animation-delay: 0.10s; }
+    .card:nth-child(4) { animation-delay: 0.15s; }
+    .card:nth-child(5) { animation-delay: 0.20s; }
 
-    /* ── Customer Card ── */
-    .customer-card {
-      background: var(--white);
-      border-radius: 16px;
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    /* ── Locker card ── */
+    .locker-card {
+      background: var(--brown); color: var(--white);
+      border-radius: 16px; padding: 24px 20px; text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    .customer-avatar {
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--border);
-    }
-    .customer-avatar-placeholder {
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      background: var(--cream);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
-      border: 2px solid var(--border);
-    }
-    .customer-info-label { font-size: 12px; color: var(--muted); }
-    .customer-name       { font-size: 18px; font-weight: 700; color: var(--text); margin-top: 2px; }
+    .locker-label   { font-size: 12px; opacity: 0.7; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+    .locker-num     { font-size: 36px; font-weight: 900; letter-spacing: 4px; font-family: monospace; }
+    .order-num-sm   { font-size: 14px; opacity: 0.7; margin-top: 6px; }
 
-    /* ── Order Items ── */
-    .items-card {
-      background: var(--white);
-      border-radius: 16px;
-      padding: 16px 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    /* ── Status card ── */
+    .status-row     { display: flex; align-items: center; justify-content: space-between; }
+    .status-title   { font-size: 16px; font-weight: 700; }
+    .status-time    { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .status-badge   { border-radius: 20px; padding: 8px 16px; font-size: 14px; font-weight: 700; }
+    .s-pending      { background:#FFF3E0; color:var(--yellow); border:2px solid #FFD180; }
+    .s-placed       { background:#E8F5E9; color:var(--green);  border:2px solid #A5D6A7; }
+    .s-picked_up    { background:#F5F5F5; color:#8E8E93;       border:2px solid #E0E0E0; }
+
+    /* ── Customer card ── */
+    .cust-row   { display: flex; align-items: center; gap: 14px; }
+    .cust-avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--border);
     }
-    .items-title {
-      font-size: 12px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 1px;
-      margin-bottom: 14px;
+    .cust-ph    {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--cream); display: flex; align-items: center;
+      justify-content: center; font-size: 24px; border: 2px solid var(--border);
     }
-    .item-row {
-      display: flex;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      gap: 12px;
-    }
+    .cust-info-label { font-size: 12px; color: var(--muted); }
+    .cust-name       { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+    /* ── Items card ── */
+    .items-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    .item-row    { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px; }
     .item-row:last-of-type { border-bottom: none; }
     .item-emoji  { font-size: 28px; }
     .item-info   { flex: 1; }
     .item-name   { font-size: 15px; font-weight: 600; }
     .item-unit   { font-size: 12px; color: var(--muted); }
-    .item-qty    {
-      background: var(--brown);
-      color: var(--white);
-      border-radius: 10px;
-      padding: 3px 10px;
-      font-size: 13px; font-weight: 700;
-    }
-    .item-price  { font-size: 15px; font-weight: 700; min-width: 52px; text-align: right; color: var(--text); }
-
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 0 0;
-      margin-top: 6px;
-      border-top: 2px solid var(--border);
+    .item-qty    { background:var(--brown); color:var(--white); border-radius:10px; padding:3px 10px; font-size:13px; font-weight:700; }
+    .item-price  { font-size: 15px; font-weight: 700; min-width: 52px; text-align: right; }
+    .total-row   {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 0 0; margin-top: 6px; border-top: 2px solid var(--border);
       font-size: 17px; font-weight: 700;
     }
     .total-price { font-size: 22px; font-weight: 900; color: var(--red); }
 
-    /* ── Confirm Button ── */
+    /* ── Action buttons ── */
     .confirm-btn {
-      width: 100%;
-      background: var(--green);
-      color: var(--white);
-      border: none;
-      border-radius: 16px;
-      padding: 18px;
-      font-size: 18px; font-weight: 700;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      transition: background 0.2s, transform 0.15s;
-      margin-top: 4px;
+      width: 100%; background: var(--green); color: var(--white); border: none;
+      border-radius: 16px; padding: 18px; font-size: 18px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s, transform 0.15s;
     }
-    .confirm-btn:hover  { background: var(--green-dk); }
+    .confirm-btn:hover  { background: #05a847; }
     .confirm-btn:active { transform: scale(0.97); }
-    .confirm-btn.done   {
-      background: var(--green-dk);
-      cursor: default;
-      opacity: 0.85;
-    }
-    .confirm-btn:disabled { cursor: default; }
+    .confirm-btn:disabled { background: #A5D6A7; cursor: default; }
+    .confirm-btn.done   { background: #05a847; cursor: default; }
 
-    /* ── Confirmed State ── */
-    .confirmed-overlay {
-      display: none;
-      background: #E8F5E9;
-      border: 2px solid #A5D6A7;
-      border-radius: 16px;
-      padding: 20px;
-      text-align: center;
+    /* ── Confirmed overlay ── */
+    .confirmed-card {
+      background: #E8F5E9; border: 2px solid #A5D6A7; border-radius: 16px;
+      padding: 24px; text-align: center; display: none;
     }
-    .confirmed-overlay.show { display: block; }
-    .confirmed-icon  { font-size: 48px; margin-bottom: 8px; }
-    .confirmed-title { font-size: 20px; font-weight: 700; color: var(--green-dk); }
+    .confirmed-card.show { display: block; }
+    .confirmed-icon  { font-size: 52px; margin-bottom: 10px; }
+    .confirmed-title { font-size: 20px; font-weight: 700; color: #2E7D32; }
     .confirmed-time  { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
-    /* ── Error / Loading ── */
-    .error-card {
-      background: var(--white);
-      border-radius: 16px;
-      padding: 40px 24px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    /* ── Waiting card ── */
+    .waiting-card {
+      background: #FFF8E1; border: 2px solid #FFD180; border-radius: 16px;
+      padding: 20px; text-align: center;
     }
-    .error-icon  { font-size: 48px; margin-bottom: 12px; }
-    .error-title { font-size: 18px; font-weight: 700; color: var(--text); }
-    .error-sub   { font-size: 14px; color: var(--muted); margin-top: 8px; }
+    .waiting-icon  { font-size: 40px; margin-bottom: 8px; }
+    .waiting-title { font-size: 16px; font-weight: 700; color: #E65100; }
+    .waiting-sub   { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
-    /* ── Animations ── */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .content > * { animation: fadeIn 0.3s ease both; }
-    .content > *:nth-child(2) { animation-delay: 0.05s; }
-    .content > *:nth-child(3) { animation-delay: 0.10s; }
-    .content > *:nth-child(4) { animation-delay: 0.15s; }
-    .content > *:nth-child(5) { animation-delay: 0.20s; }
+    /* ── Error ── */
+    .error-card { background:var(--white); border-radius:16px; padding:40px 24px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    .error-icon  { font-size:48px; margin-bottom:12px; }
+    .error-title { font-size:18px; font-weight:700; }
+    .error-sub   { font-size:14px; color:var(--muted); margin-top:8px; }
   </style>
 </head>
 <body>
 <div class="page">
 
-  <!-- Header -->
-  <div class="header">
+  <div class="header" id="pageHeader">
     <div>
-      <div class="header-title">📦 格子櫃取餐確認</div>
-      <div class="header-sub">工作人員掃碼頁面</div>
+      <div class="header-title" id="headerTitle">📦 格子櫃取餐</div>
+      <div class="header-sub"  id="headerSub">掃碼取餐頁面</div>
     </div>
-    <div class="staff-badge">STAFF</div>
+    <div class="staff-badge" id="roleBadge">客戶</div>
   </div>
 
-  <!-- Content injected by JS -->
   <div class="content" id="content"></div>
 
 </div>
 
 <script>
-// ── Base64 解碼（支援中文 / Unicode）──
-function decodeOrder(b64) {
-  try {
-    // 還原 URL-safe base64 → 標準 base64
-    const std  = b64.replace(/-/g, '+').replace(/_/g, '/');
-    const json = decodeURIComponent(
-      Array.from(atob(std))
-        .map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
-        .join('')
-    );
-    return JSON.parse(json);
-  } catch {
-    return null;
+// ════════════════════════════════════════
+//  讀取 URL 參數
+//  支援兩種來源：
+//   1. ?locker=everbrite005  （格子代碼直掃）
+//   2. ?id=H042              （含訂單 ID）
+// ════════════════════════════════════════
+const params  = new URLSearchParams(location.search);
+const locker  = params.get('locker') || '';
+const orderId = params.get('id')     || '';
+
+function getOrders() {
+  try { return JSON.parse(localStorage.getItem('liff_orders') || '{}'); } catch { return {}; }
+}
+function updateOrder(id, patch) {
+  const o = getOrders();
+  if (o[id]) { Object.assign(o[id], patch); localStorage.setItem('liff_orders', JSON.stringify(o)); }
+}
+
+// ── 根據 locker 或 orderId 找訂單 ──
+function findOrder() {
+  const orders = Object.values(getOrders());
+  if (orderId) return getOrders()[orderId] || null;
+  if (locker)  return orders.find(o => o.locker === locker && o.status !== 'picked_up') || null;
+  return null;
+}
+
+// ── localStorage 確認記錄 ──
+function getConfirmed() { try { return JSON.parse(localStorage.getItem('confirmed_orders')||'{}'); } catch { return {}; } }
+function saveConfirmed(id, time) {
+  const c = getConfirmed(); c[id] = time; localStorage.setItem('confirmed_orders', JSON.stringify(c));
+}
+
+// ════════════════════════════════════════
+//  頁面渲染
+// ════════════════════════════════════════
+function render() {
+  const order = findOrder();
+  const el    = document.getElementById('content');
+
+  if (!order && !locker) {
+    el.innerHTML = `
+      <div class="error-card">
+        <div class="error-icon">🔍</div>
+        <div class="error-title">找不到訂單</div>
+        <div class="error-sub">請重新掃描 QR Code</div>
+      </div>`;
+    return;
   }
-}
 
-// ── LocalStorage helpers（記住已確認的訂單）──
-const STORAGE_KEY = 'confirmed_orders';
-function getConfirmedOrders() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
-}
-function saveConfirmed(orderId, time) {
-  const obj = getConfirmedOrders();
-  obj[orderId] = time;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-}
+  // 若只有 locker（沒訂單）→ 等待畫面
+  if (!order) {
+    el.innerHTML = `
+      <div class="locker-card">
+        <div class="locker-label">格子代碼</div>
+        <div class="locker-num">${locker.toUpperCase()}</div>
+      </div>
+      <div class="waiting-card">
+        <div class="waiting-icon">⏳</div>
+        <div class="waiting-title">尚無對應訂單</div>
+        <div class="waiting-sub">此格子目前沒有待取餐的訂單</div>
+      </div>`;
+    return;
+  }
 
-// ── 格式化時間 ──
-function fmtTime(iso) {
-  const d = new Date(iso + (iso.length === 16 ? ':00' : ''));
-  if (isNaN(d)) return iso;
-  return d.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric',
-    hour: '2-digit', minute: '2-digit' });
-}
+  const confirmed   = getConfirmed();
+  const alreadyDone = !!confirmed[order.id] || order.status === 'picked_up';
+  const confirmedAt = confirmed[order.id] || '';
 
-// ── 主邏輯 ──
-const params = new URLSearchParams(location.search);
-const b64    = params.get('d');
-const order  = b64 ? decodeOrder(b64) : null;
-const el     = document.getElementById('content');
+  const avatarHTML = order.pic
+    ? `<img class="cust-avatar" src="${order.pic}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+       <div class="cust-ph" style="display:none">👤</div>`
+    : `<div class="cust-ph">👤</div>`;
 
-if (!order) {
-  el.innerHTML = `
-    <div class="error-card">
-      <div class="error-icon">🔍</div>
-      <div class="error-title">找不到訂單資料</div>
-      <div class="error-sub">請重新掃描 QR Code</div>
-    </div>`;
-} else {
-  const confirmed    = getConfirmedOrders();
-  const alreadyDone  = !!confirmed[order.id];
-  const confirmedAt  = confirmed[order.id] || '';
-
-  // 頭像 HTML
-  const avatarHtml = order.pic
-    ? `<img class="customer-avatar" src="${order.pic}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-    + `<div class="customer-avatar-placeholder" style="display:none">👤</div>`
-    : `<div class="customer-avatar-placeholder">👤</div>`;
-
-  // 品項列表
-  const itemRows = order.items.map(item => `
+  const itemsHTML = (order.items||[]).map(i => `
     <div class="item-row">
-      <div class="item-emoji">${item.e}</div>
+      <div class="item-emoji">${i.e}</div>
       <div class="item-info">
-        <div class="item-name">${item.n}</div>
-        <div class="item-unit">$${item.v} / 杯</div>
+        <div class="item-name">${i.n}</div>
+        <div class="item-unit">$${i.v} / 杯</div>
       </div>
-      <div class="item-qty">×${item.q}</div>
-      <div class="item-price">$${item.v * item.q}</div>
-    </div>
-  `).join('');
+      <div class="item-qty">×${i.q}</div>
+      <div class="item-price">$${i.v*i.q}</div>
+    </div>`).join('');
+
+  const statusBadge = {
+    pending:   `<div class="status-badge s-pending">⏳ 備餐中</div>`,
+    placed:    `<div class="status-badge s-placed">✅ 可取餐</div>`,
+    picked_up: `<div class="status-badge s-picked_up">🎉 已取餐</div>`,
+  }[order.status] || '';
 
   el.innerHTML = `
-    <!-- 訂單號 + 狀態 -->
-    <div class="status-card">
-      <div>
-        <div class="order-num-label">取餐號碼</div>
-        <div class="order-num">#${order.id}</div>
-        <div class="order-time">下單時間：${fmtTime(order.ts)}</div>
-      </div>
-      <div class="status-badge ${alreadyDone ? 'confirmed' : 'pending'}" id="statusBadge">
-        ${alreadyDone ? '✅ 已取餐' : '⏳ 待取餐'}
+    <div class="locker-card">
+      <div class="locker-label">您的取餐格子</div>
+      <div class="locker-num">${(order.locker||'—').toUpperCase()}</div>
+      <div class="order-num-sm">訂單 #${order.id}</div>
+    </div>
+
+    <div class="card">
+      <div class="status-row">
+        <div>
+          <div class="status-title">訂單狀態</div>
+          <div class="status-time">下單：${fmtTime(order.ts)}</div>
+        </div>
+        ${statusBadge}
       </div>
     </div>
 
-    <!-- 顧客資訊 -->
-    <div class="customer-card">
-      ${avatarHtml}
-      <div>
-        <div class="customer-info-label">顧客</div>
-        <div class="customer-name">${order.u}</div>
+    <div class="card">
+      <div class="cust-row">
+        ${avatarHTML}
+        <div>
+          <div class="cust-info-label">顧客</div>
+          <div class="cust-name">${order.u||'—'}</div>
+        </div>
       </div>
     </div>
 
-    <!-- 訂單明細 -->
-    <div class="items-card">
+    <div class="card">
       <div class="items-title">訂單明細</div>
-      ${itemRows}
+      ${itemsHTML}
       <div class="total-row">
         <span>合計</span>
         <span class="total-price">$${order.t}</span>
       </div>
     </div>
 
-    <!-- 已確認提示（初始隱藏）-->
-    <div class="confirmed-overlay ${alreadyDone ? 'show' : ''}" id="confirmedOverlay">
+    ${order.status === 'pending' ? `
+    <div class="waiting-card">
+      <div class="waiting-icon">⏳</div>
+      <div class="waiting-title">飲品備製中，請稍候</div>
+      <div class="waiting-sub">工作人員完成後將放入格子，屆時請再掃碼取餐</div>
+    </div>` : ''}
+
+    ${order.status !== 'pending' ? `
+    <div class="confirmed-card ${alreadyDone ? 'show' : ''}" id="confirmedCard">
       <div class="confirmed-icon">✅</div>
-      <div class="confirmed-title">已確認取餐</div>
-      <div class="confirmed-time" id="confirmedTimeText">
-        ${alreadyDone ? `確認時間：${confirmedAt}` : ''}
-      </div>
+      <div class="confirmed-title">取餐完成！</div>
+      <div class="confirmed-time" id="confirmedTimeEl">${alreadyDone ? `取餐時間：${confirmedAt}` : ''}</div>
     </div>
 
-    <!-- 確認按鈕 -->
     <button class="confirm-btn ${alreadyDone ? 'done' : ''}"
             id="confirmBtn"
-            onclick="confirmPickup()"
+            onclick="doPickup('${order.id}')"
             ${alreadyDone ? 'disabled' : ''}>
-      ${alreadyDone ? '✅ 已完成取餐' : '✓ 確認取餐'}
-    </button>
+      ${alreadyDone ? '✅ 已完成取餐' : '🔓 確認取餐・開啟格子'}
+    </button>` : ''}
   `;
 }
 
-function confirmPickup() {
-  const btn     = document.getElementById('confirmBtn');
-  const badge   = document.getElementById('statusBadge');
-  const overlay = document.getElementById('confirmedOverlay');
-  const timeEl  = document.getElementById('confirmedTimeText');
-
+// ── 確認取餐 ──
+function doPickup(id) {
   const now = new Date().toLocaleString('zh-TW', {
-    month: 'numeric', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'
   });
 
-  saveConfirmed(order.id, now);
+  updateOrder(id, { status:'picked_up', pickedAt: new Date().toISOString().slice(0,16) });
+  saveConfirmed(id, now);
 
-  btn.textContent = '✅ 已完成取餐';
-  btn.classList.add('done');
-  btn.disabled = true;
+  const btn  = document.getElementById('confirmBtn');
+  const card = document.getElementById('confirmedCard');
+  const time = document.getElementById('confirmedTimeEl');
 
-  badge.textContent = '✅ 已取餐';
-  badge.className   = 'status-badge confirmed';
-
-  timeEl.textContent = `確認時間：${now}`;
-  overlay.classList.add('show');
+  if (btn)  { btn.textContent = '✅ 已完成取餐'; btn.disabled = true; btn.classList.add('done'); }
+  if (card) { card.classList.add('show'); }
+  if (time) { time.textContent = `取餐時間：${now}`; }
 }
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + (iso.length===16?':00':''));
+  if (isNaN(d)) return iso;
+  return d.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// ── 啟動 ──
+render();
 </script>
 </body>
 </html>
