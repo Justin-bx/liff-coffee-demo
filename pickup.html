@@ -241,9 +241,9 @@ function render() {
 
   el.innerHTML = `
     <div class="locker-card">
-      <div class="locker-label">您的取餐格子</div>
-      <div class="locker-num">${(order.locker||'—').toUpperCase()}</div>
-      <div class="order-num-sm">訂單 #${order.id}</div>
+      <div class="locker-label">${order.locker && order.status !== 'pending' ? '您的取餐格子' : '您的訂單'}</div>
+      <div class="locker-num">${order.locker && order.status !== 'pending' ? order.locker.toUpperCase() : '#' + order.id}</div>
+      <div class="order-num-sm">${order.locker && order.status !== 'pending' ? '訂單 #' + order.id : fmtTime(order.ts) + ' 下單'}</div>
     </div>
 
     <div class="card">

@@ -158,6 +158,34 @@
     .place-btn:hover { background: #05a847; }
     .placed-info  { font-size: 13px; color: var(--green); font-weight: 600; }
     .done-info    { font-size: 13px; color: var(--gray); font-weight: 600; }
+
+    /* ── Locker picker modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: var(--white); border-radius: 20px; padding: 24px 20px;
+      width: calc(100% - 40px); max-width: 380px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .modal-sub   { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+    .locker-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;
+    }
+    .locker-btn {
+      border: 2px solid var(--border); border-radius: 10px; padding: 10px 4px;
+      font-size: 12px; font-weight: 700; font-family: monospace; cursor: pointer;
+      background: var(--white); transition: all 0.15s; text-align: center;
+    }
+    .locker-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+    .locker-btn:disabled { background: #F5F5F5; color: var(--gray); cursor: not-allowed; opacity: 0.5; }
+    .modal-cancel {
+      width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px;
+      background: var(--white); font-size: 14px; color: var(--muted); cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -185,9 +213,22 @@
   <div id="orderList"></div>
 </div>
 
+<!-- 格子選擇彈窗 -->
+<div class="modal-overlay" id="lockerModal">
+  <div class="modal-box">
+    <div class="modal-title">📦 選擇放餐格子</div>
+    <div class="modal-sub">請選擇要放入的格子（灰色代表使用中）</div>
+    <div class="locker-grid" id="lockerGrid"></div>
+    <button class="modal-cancel" onclick="closeModal()">取消</button>
+  </div>
+</div>
+
 <script>
+const LOCKERS = Array.from({length:12}, (_,i) => 'everbrite' + String(i+1).padStart(3,'0'));
+
 let allOrders  = {};
 let filter     = 'all';
+let pickingFor = null;  // orderId 等待選格子
 
 // ── 讀取 localStorage ──
 function getOrders() {
@@ -265,10 +306,11 @@ function cardHTML(o) {
             <span class="order-num">#${o.id}</span>${statusBadge}
           </div>
           <div class="order-time">下單：${fmtTime(o.ts)}</div>
+          ${o.locker ? `
           <div class="locker-row">
             <span style="font-size:12px;color:var(--muted)">格子代碼</span>
-            <span class="locker-tag">${(o.locker||'—').toUpperCase()}</span>
-          </div>
+            <span class="locker-tag">${o.locker.toUpperCase()}</span>
+          </div>` : ''}
           <div class="cust-row">${avatarHTML}<span class="cust-name">${o.u||'—'}</span></div>
           <div class="item-list">${itemsHTML}</div>
           <div class="total-row">
@@ -279,7 +321,7 @@ function cardHTML(o) {
         <div class="card-qr">
           <div class="qr-cell" id="qr-${o.id}"></div>
           <div class="qr-label">客戶取餐 QR</div>
-          <div class="qr-code-text">${(o.locker||'').toUpperCase()}</div>
+          <div class="qr-code-text">${o.locker ? o.locker.toUpperCase() : '#'+o.id}</div>
         </div>
       </div>
       ${actionBar(o)}
@@ -289,26 +331,25 @@ function cardHTML(o) {
 function actionBar(o) {
   if (o.status === 'pending') return `
     <div class="card-action">
-      <span class="locker-hint">格子號</span>
-      <input class="locker-input" id="slot-${o.id}" type="text"
-             placeholder="${(o.locker||'').toUpperCase().replace('EVERBRITE','')}"
-             value="${(o.locker||'').toUpperCase().replace('EVERBRITE','')}">
-      <button class="place-btn" onclick="markPlaced('${o.id}')">📦 已放入格子</button>
+      <button class="place-btn" onclick="openLockerPicker('${o.id}')">📦 選格子・放入餐點</button>
     </div>`;
   if (o.status === 'placed') return `
     <div class="card-action">
-      <span class="placed-info">✅ 已放入 ${(o.locker||'').toUpperCase()} — 等待客戶取餐</span>
+      <span class="placed-info">✅ 已放入 ${o.locker.toUpperCase()} — 等待客戶取餐</span>
     </div>`;
   return `<div class="card-action"><span class="done-info">🎉 客戶已完成取餐</span></div>`;
 }
 
-// ── 產生 QR（格子代碼）──
+// ── 產生 QR（取餐 URL）──
 function buildQR(o) {
   const container = document.getElementById('qr-' + o.id);
   if (!container || container.childElementCount > 0) return;
+  const url = o.locker
+    ? 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + o.locker
+    : 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?id=' + o.id;
   try {
     new QRCode(container, {
-      text: o.locker || o.id,
+      text: url,
       width: 86, height: 86,
       colorDark: '#4A2C1A', colorLight: '#FFFFFF',
       correctLevel: QRCode.CorrectLevel.M,
@@ -316,13 +357,36 @@ function buildQR(o) {
   } catch(e) { container.textContent = '?'; }
 }
 
-// ── 標記放入格子 ──
-function markPlaced(orderId) {
-  updateOrder(orderId, {
+// ── 格子選擇彈窗 ──
+function openLockerPicker(orderId) {
+  pickingFor = orderId;
+  const inUse = new Set(
+    Object.values(allOrders)
+      .filter(o => o.status === 'placed' && o.locker)
+      .map(o => o.locker)
+  );
+  const grid = document.getElementById('lockerGrid');
+  grid.innerHTML = LOCKERS.map(l => `
+    <button class="locker-btn" ${inUse.has(l) ? 'disabled title="使用中"' : ''}
+            onclick="confirmLocker('${l}')">
+      ${l.replace('everbrite','').replace(/^0+/,'')}
+    </button>`).join('');
+  document.getElementById('lockerModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('lockerModal').classList.remove('show');
+  pickingFor = null;
+}
+
+function confirmLocker(locker) {
+  if (!pickingFor) return;
+  updateOrder(pickingFor, {
     status:   'placed',
+    locker:   locker,
     placedAt: new Date().toISOString().slice(0,16),
   });
-  delete qrDone[orderId];
+  closeModal();
   refresh();
 }
 

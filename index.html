@@ -269,13 +269,12 @@
 
   <!-- Screen 3: QR -->
   <div class="screen qr-screen" id="screenQR">
-    <div class="locker-badge">您的取餐格子</div>
-    <div class="locker-code" id="lockerCode">—</div>
+    <div class="locker-badge">您的訂單編號</div>
     <div class="qr-order-num" id="qrOrderNum"></div>
-    <div class="qr-hint">持此 QR Code 至格子櫃掃碼取餐</div>
+    <div class="qr-hint">持此 QR Code，等待服務人員放餐後掃碼取餐</div>
     <div class="qr-box"><div id="qrcode"></div></div>
     <div class="qr-scan-hint">
-      📦 <strong>工作人員備餐完成後</strong><br>將飲品放入您的格子，再掃碼取餐
+      📦 <strong>服務人員備餐完成後</strong><br>會將飲品放入格子，屆時請掃碼取餐
     </div>
     <div class="qr-items-summary" id="qrItemsSummary"></div>
     <div class="qr-actions">
@@ -476,8 +475,6 @@ async function placeOrder() {
   orderNumber = letters[Math.floor(Math.random()*letters.length)] +
                 String(Math.floor(Math.random()*99)+1).padStart(3,'0');
 
-  const locker = assignLocker();
-
   const orderData = {
     id:     orderNumber,
     u:      lineUser?.displayName || 'DEMO 用戶',
@@ -488,35 +485,33 @@ async function placeOrder() {
               return { n: m.name, e: m.emoji, q: qty, v: m.price };
             }),
     t:      calcTotal(),
-    locker: locker,
+    locker: '',       // 格子由員工放餐時分配，避免多人同時下單衝突
     status: 'pending',
     ts:     new Date().toISOString().slice(0,16),
   };
 
-  // 儲存訂單
   saveOrder(orderNumber, orderData);
-
-  generateQR(locker, orderData);
+  generateQR(orderData);
 
   document.getElementById('headerTitle').textContent = '✅ 訂單成立';
   document.getElementById('headerSub').textContent   = `訂單 #${orderNumber}`;
   document.getElementById('cartBtn').style.display   = 'none';
   showScreen('QR');
 
-  await sendOrderMessage(locker);
+  await sendOrderMessage();
 }
 
 // ════════════════════════════════════════
-//  QR Code 產生（內容 = 取餐頁 URL，含固定格子代碼）
+//  QR Code 產生（內容 = 訂單查詢 URL）
 // ════════════════════════════════════════
-function generateQR(locker, orderData) {
-  document.getElementById('lockerCode').textContent = locker.toUpperCase();
+function generateQR(orderData) {
   document.getElementById('qrOrderNum').textContent = '#' + orderData.id;
 
   const container = document.getElementById('qrcode');
   container.innerHTML = '';
 
-  const pickupURL = 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + locker;
+  // QR 內容：訂單查詢 URL，格子由員工後台指定後頁面會顯示
+  const pickupURL = 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?id=' + orderData.id;
   new QRCode(container, {
     text: pickupURL,
     width: 220, height: 220,
@@ -536,7 +531,7 @@ function generateQR(locker, orderData) {
 // ════════════════════════════════════════
 //  LINE sendMessages
 // ════════════════════════════════════════
-async function sendOrderMessage(locker) {
+async function sendOrderMessage() {
   if (!isInLine) return;
   const itemsText = Object.entries(cart).map(([id,qty])=>{
     const m = MENU.find(i=>i.id===id);
@@ -544,8 +539,8 @@ async function sendOrderMessage(locker) {
   }).join('\n');
   try {
     await liff.sendMessages([{ type:'text', text:
-      `✅ 訂單已成立！\n取餐號碼：#${orderNumber}\n格子代碼：${locker.toUpperCase()}\n` +
-      `─────────\n${itemsText}\n─────────\n合計：$${calcTotal()}\n\n📦 請至格子櫃掃碼取餐`
+      `✅ 訂單已成立！\n取餐號碼：#${orderNumber}\n` +
+      `─────────\n${itemsText}\n─────────\n合計：$${calcTotal()}\n\n📦 服務人員備餐後請掃碼取餐`
     }]);
   } catch(e) { console.warn('[LIFF] sendMessages:', e.message); }
 }
