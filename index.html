@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>智慧格子櫃點餐</title>
+  <!-- 之後接 LINE LIFF SDK：<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script> -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brown-dark:  #4A2C1A;
+      --brown-mid:   #7B4A2D;
+      --brown-light: #C8956C;
+      --cream:       #F9F4EE;
+      --cream-dark:  #EDE4D8;
+      --accent:      #E8622A;
+      --text:        #2D1A0E;
+      --text-muted:  #9B7B5E;
+      --white:       #FFFFFF;
+      --shadow:      0 2px 12px rgba(74,44,26,0.12);
+    }
+
+    body {
+      font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      background: var(--white);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--brown-dark);
+      color: var(--white);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .header-subtitle {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    .cart-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 20px;
+      color: var(--white);
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .cart-btn:hover { background: #d45520; }
+    .cart-badge {
+      background: var(--white);
+      color: var(--accent);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; flex: 1; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── Menu Screen ── */
+    .category-label {
+      padding: 16px 20px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 0 16px 100px;
+    }
+    .menu-card {
+      background: var(--white);
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 16px;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .menu-card.has-qty {
+      border-color: var(--brown-light);
+      box-shadow: 0 0 0 2px rgba(200,149,108,0.2);
+    }
+    .menu-emoji { font-size: 42px; line-height: 1; }
+    .menu-name { font-size: 14px; font-weight: 700; text-align: center; }
+    .menu-name-en { font-size: 11px; color: var(--text-muted); text-align: center; }
+    .menu-price { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .qty-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .qty-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--brown-light);
+      background: var(--white);
+      color: var(--brown-mid);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+    .qty-btn:hover { background: var(--cream-dark); }
+    .qty-btn.plus { border-color: var(--accent); color: var(--accent); }
+    .qty-num { font-size: 16px; font-weight: 700; min-width: 20px; text-align: center; }
+
+    /* ── Floating Cart Bar ── */
+    .float-bar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      padding: 12px 16px;
+      background: var(--white);
+      border-top: 1px solid var(--cream-dark);
+      z-index: 200;
+    }
+    .goto-cart-btn {
+      width: 100%;
+      background: var(--brown-dark);
+      color: var(--white);
+      border: none;
+      border-radius: 14px;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+    }
+    .goto-cart-btn:hover { background: var(--brown-mid); }
+    .goto-cart-btn:disabled { background: var(--cream-dark); color: var(--text-muted); cursor: default; }
+    .goto-cart-right { display: flex; align-items: center; gap: 8px; }
+
+    /* ── Cart Screen ── */
+    .cart-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .cart-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: var(--cream);
+      border-radius: 14px;
+      margin-bottom: 10px;
+    }
+    .cart-item-emoji { font-size: 32px; }
+    .cart-item-info { flex: 1; }
+    .cart-item-name { font-size: 15px; font-weight: 700; }
+    .cart-item-price { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .cart-item-qty {
+      font-size: 13px;
+      background: var(--brown-light);
+      color: var(--white);
+      border-radius: 10px;
+      padding: 3px 10px;
+      font-weight: 700;
+    }
+    .cart-item-subtotal { font-size: 15px; font-weight: 700; color: var(--accent); min-width: 52px; text-align: right; }
+
+    .cart-divider { height: 1px; background: var(--cream-dark); margin: 8px 0; }
+    .cart-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .cart-total-price { color: var(--accent); font-size: 22px; }
+
+    .order-btn {
+      margin: 0 16px 24px;
+      background: var(--accent);
+      color: var(--white);
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      width: calc(100% - 32px);
+      transition: background 0.2s;
+    }
+    .order-btn:hover { background: #d45520; }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--brown-mid);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── QR Screen ── */
+    .qr-screen {
+      align-items: center;
+      padding: 24px 20px;
+      background: var(--white);
+    }
+    .qr-order-tag {
+      background: var(--brown-dark);
+      color: var(--white);
+      border-radius: 20px;
+      padding: 8px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .qr-order-num {
+      font-size: 48px;
+      font-weight: 900;
+      color: var(--brown-dark);
+      letter-spacing: 4px;
+      margin-bottom: 4px;
+    }
+    .qr-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+    .qr-box {
+      background: var(--white);
+      border: 3px solid var(--brown-dark);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    #qrcode canvas, #qrcode img {
+      border-radius: 8px;
+    }
+    .qr-scan-hint {
+      background: var(--cream);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+    .qr-scan-hint strong { color: var(--text); }
+
+    .qr-items-summary {
+      width: 100%;
+      background: var(--cream);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+    .qr-items-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .qr-item-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      padding: 3px 0;
+    }
+    .qr-total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 8px 0 0;
+      border-top: 1px solid var(--cream-dark);
+      margin-top: 6px;
+    }
+    .qr-total-row span:last-child { color: var(--accent); }
+
+    .new-order-btn {
+      width: 100%;
+      background: var(--white);
+      border: 2px solid var(--brown-dark);
+      color: var(--brown-dark);
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .new-order-btn:hover { background: var(--cream); }
+
+    /* ── Animations ── */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .screen.active { animation: slideUp 0.25s ease; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header" id="appHeader">
+    <div>
+      <div class="header-title" id="headerTitle">☕ 智慧格子櫃點餐</div>
+      <div class="header-subtitle" id="headerSub">請選擇您的飲品</div>
+    </div>
+    <button class="cart-btn" id="cartBtn" onclick="goToCart()">
+      🛒 <span id="cartBtnLabel">購物車</span>
+      <div class="cart-badge" id="cartCount">0</div>
+    </button>
+  </div>
+
+  <!-- ── Screen 1: Menu ── -->
+  <div class="screen active" id="screenMenu">
+    <div class="category-label">熱門飲品</div>
+    <div class="menu-grid" id="menuGrid"></div>
+
+    <div class="float-bar">
+      <button class="goto-cart-btn" id="gotoCartBtn" onclick="goToCart()" disabled>
+        <span>前往確認訂單</span>
+        <div class="goto-cart-right">
+          <span id="cartSummary">尚未選取</span>
+          <span>→</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Screen 2: Cart ── -->
+  <div class="screen" id="screenCart">
+    <div class="cart-list" id="cartList"></div>
+    <div class="cart-divider"></div>
+    <div class="cart-total-row">
+      <span>合計</span>
+      <span class="cart-total-price" id="cartTotal">$0</span>
+    </div>
+    <button class="order-btn" onclick="placeOrder()">✅ 確認下單</button>
+  </div>
+
+  <!-- ── Screen 3: QR Code ── -->
+  <div class="screen qr-screen" id="screenQR">
+    <div class="qr-order-tag">取餐號碼</div>
+    <div class="qr-order-num" id="qrOrderNum">A001</div>
+    <div class="qr-hint">請至格子櫃掃碼取餐</div>
+    <div class="qr-box">
+      <div id="qrcode"></div>
+    </div>
+    <div class="qr-scan-hint">
+      📦 <strong>格子櫃工作人員掃描後</strong><br>對應格子將自動開啟
+    </div>
+    <div class="qr-items-summary" id="qrItemsSummary"></div>
+    <button class="new-order-btn" onclick="resetOrder()">🔄 重新點餐</button>
+  </div>
+
+</div>
+
+<script>
+// ── 菜單資料 ──
+const MENU = [
+  { id: 'americano', emoji: '☕', name: '美式咖啡', en: 'Americano',     price: 80  },
+  { id: 'latte',     emoji: '🥛', name: '拿鐵',     en: 'Latte',         price: 95  },
+  { id: 'cappuccino',emoji: '☁️', name: '卡布奇諾', en: 'Cappuccino',    price: 95  },
+  { id: 'mocha',     emoji: '🍫', name: '摩卡',     en: 'Mocha',         price: 105 },
+  { id: 'caramel',   emoji: '🍯', name: '焦糖瑪奇朵',en: 'Caramel Macchiato', price: 115 },
+  { id: 'matcha',    emoji: '🍵', name: '抹茶拿鐵', en: 'Matcha Latte',  price: 105 },
+];
+
+// ── 狀態 ──
+let cart = {};  // { itemId: quantity }
+let orderNumber = '';
+
+// ── 初始化菜單 ──
+function renderMenu() {
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = MENU.map(item => `
+    <div class="menu-card ${(cart[item.id] || 0) > 0 ? 'has-qty' : ''}" id="card-${item.id}">
+      <div class="menu-emoji">${item.emoji}</div>
+      <div class="menu-name">${item.name}</div>
+      <div class="menu-name-en">${item.en}</div>
+      <div class="menu-price">$${item.price}</div>
+      <div class="qty-control">
+        <button class="qty-btn" onclick="updateQty('${item.id}', -1)">−</button>
+        <div class="qty-num" id="qty-${item.id}">${cart[item.id] || 0}</div>
+        <button class="qty-btn plus" onclick="updateQty('${item.id}', 1)">+</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── 更新數量 ──
+function updateQty(id, delta) {
+  const current = cart[id] || 0;
+  const next = Math.max(0, current + delta);
+  if (next === 0) delete cart[id];
+  else cart[id] = next;
+
+  // 更新數字
+  const qtyEl = document.getElementById('qty-' + id);
+  if (qtyEl) qtyEl.textContent = next;
+
+  // 更新卡片樣式
+  const card = document.getElementById('card-' + id);
+  if (card) card.className = 'menu-card ' + (next > 0 ? 'has-qty' : '');
+
+  updateCartUI();
+}
+
+// ── 更新 Header 購物車狀態 ──
+function updateCartUI() {
+  const totalQty   = Object.values(cart).reduce((a, b) => a + b, 0);
+  const totalPrice = calcTotal();
+
+  document.getElementById('cartCount').textContent   = totalQty;
+  document.getElementById('cartBtnLabel').textContent = totalQty > 0 ? `${totalQty}件` : '購物車';
+
+  const gotoBtn = document.getElementById('gotoCartBtn');
+  const summary = document.getElementById('cartSummary');
+  if (totalQty > 0) {
+    gotoBtn.disabled = false;
+    summary.textContent = `${totalQty} 件 · $${totalPrice}`;
+  } else {
+    gotoBtn.disabled = true;
+    summary.textContent = '尚未選取';
+  }
+}
+
+function calcTotal() {
+  return Object.entries(cart).reduce((sum, [id, qty]) => {
+    const item = MENU.find(m => m.id === id);
+    return sum + (item ? item.price * qty : 0);
+  }, 0);
+}
+
+// ── 切換畫面 ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function goToCart() {
+  if (Object.keys(cart).length === 0) return;
+  renderCart();
+  document.getElementById('headerTitle').textContent = '🛒 確認訂單';
+  document.getElementById('headerSub').textContent   = '確認後送出';
+  document.getElementById('cartBtn').style.display   = 'none';
+  showScreen('Cart');
+}
+
+function goToMenu() {
+  document.getElementById('headerTitle').textContent = '☕ 智慧格子櫃點餐';
+  document.getElementById('headerSub').textContent   = '請選擇您的飲品';
+  document.getElementById('cartBtn').style.display   = 'flex';
+  showScreen('Menu');
+}
+
+// ── 渲染購物車 ──
+function renderCart() {
+  const list = document.getElementById('cartList');
+  const items = Object.entries(cart).map(([id, qty]) => {
+    const item = MENU.find(m => m.id === id);
+    if (!item) return '';
+    return `
+      <div class="cart-item">
+        <div class="cart-item-emoji">${item.emoji}</div>
+        <div class="cart-item-info">
+          <div class="cart-item-name">${item.name}</div>
+          <div class="cart-item-price">$${item.price} / 杯</div>
+        </div>
+        <div class="cart-item-qty">×${qty}</div>
+        <div class="cart-item-subtotal">$${item.price * qty}</div>
+      </div>
+    `;
+  });
+  list.innerHTML = items.join('');
+  document.getElementById('cartTotal').textContent = '$' + calcTotal();
+}
+
+// ── 下單 ──
+function placeOrder() {
+  // 產生訂單號 (DEMO: 隨機字母 + 數字)
+  const letters = 'ABCDEFGH';
+  const letter  = letters[Math.floor(Math.random() * letters.length)];
+  const num     = String(Math.floor(Math.random() * 99) + 1).padStart(3, '0');
+  orderNumber   = letter + num;
+
+  generateQR();
+  document.getElementById('headerTitle').textContent = '✅ 訂單成立';
+  document.getElementById('headerSub').textContent   = `訂單 #${orderNumber}`;
+  document.getElementById('cartBtn').style.display   = 'none';
+  showScreen('QR');
+}
+
+// ── 產生 QR Code ──
+function generateQR() {
+  document.getElementById('qrOrderNum').textContent = '#' + orderNumber;
+
+  // QR 內容：短格式（訂單號 + 金額），明細顯示在頁面上
+  const payload = `ORDER:${orderNumber}|$${calcTotal()}`;
+
+  const container = document.getElementById('qrcode');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: payload,
+    width:  220,
+    height: 220,
+    colorDark:  '#4A2C1A',
+    colorLight: '#FFFFFF',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+
+  // 訂單摘要
+  const summary = document.getElementById('qrItemsSummary');
+  const rows = Object.entries(cart).map(([id, qty]) => {
+    const item = MENU.find(m => m.id === id);
+    return `<div class="qr-item-row"><span>${item.emoji} ${item.name} ×${qty}</span><span>$${item.price * qty}</span></div>`;
+  }).join('');
+  summary.innerHTML = `
+    <div class="qr-items-title">訂單明細</div>
+    ${rows}
+    <div class="qr-total-row"><span>合計</span><span>$${calcTotal()}</span></div>
+  `;
+}
+
+// ── 重設 ──
+function resetOrder() {
+  cart = {};
+  orderNumber = '';
+  renderMenu();
+  updateCartUI();
+  document.getElementById('qrcode').innerHTML = '';
+  goToMenu();
+}
+
+// ── 啟動 ──
+// TODO: 接 LINE LIFF 時在這裡加：
+// liff.init({ liffId: 'YOUR_LIFF_ID' }).then(() => { ... });
+renderMenu();
+updateCartUI();
+</script>
+</body>
+</html>
