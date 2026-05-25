@@ -329,7 +329,7 @@ function saveOrder(id, data) {
   localStorage.setItem('liff_orders', JSON.stringify(o));
 }
 
-// ── 分配格子（挑第一個未被使用的）──
+// ── 分配格子（round-robin 輪流，從上次用過的下一格開始）──
 function assignLocker() {
   const inUse = new Set(
     Object.values(getOrders())
@@ -337,7 +337,18 @@ function assignLocker() {
       .map(o => o.locker)
       .filter(Boolean)
   );
-  return LOCKERS.find(l => !inUse.has(l)) || LOCKERS[0];
+  const lastIdx = parseInt(localStorage.getItem('last_locker_idx') ?? '-1', 10);
+  for (let i = 1; i <= LOCKERS.length; i++) {
+    const idx = (lastIdx + i) % LOCKERS.length;
+    if (!inUse.has(LOCKERS[idx])) {
+      localStorage.setItem('last_locker_idx', idx);
+      return LOCKERS[idx];
+    }
+  }
+  // 全滿時從下一格強制分配
+  const idx = (lastIdx + 1) % LOCKERS.length;
+  localStorage.setItem('last_locker_idx', idx);
+  return LOCKERS[idx];
 }
 
 // ════════════════════════════════════════
