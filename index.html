@@ -507,7 +507,7 @@ async function placeOrder() {
 }
 
 // ════════════════════════════════════════
-//  QR Code 產生（內容 = 格子代碼）
+//  QR Code 產生（內容 = 取餐頁 URL，含固定格子代碼）
 // ════════════════════════════════════════
 function generateQR(locker, orderData) {
   document.getElementById('lockerCode').textContent = locker.toUpperCase();
@@ -516,9 +516,9 @@ function generateQR(locker, orderData) {
   const container = document.getElementById('qrcode');
   container.innerHTML = '';
 
-  // QR 內容：格子代碼（固定格式，格子櫃硬體直接辨識）
+  const pickupURL = 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + locker;
   new QRCode(container, {
-    text: locker,  // e.g. "everbrite005"
+    text: pickupURL,
     width: 220, height: 220,
     colorDark: '#4A2C1A', colorLight: '#FFFFFF',
     correctLevel: QRCode.CorrectLevel.M,
