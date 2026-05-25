@@ -112,31 +112,23 @@
 </div>
 
 <script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbzrHgVEPUmVJ8aN2-SNZ024G6QRZWGFw4vDxNErIhrV6bEmbAPErJBUlRoGSNB6y2z-_A/exec';
 let allOrders = {};
 
-function getOrders() {
-  try { return JSON.parse(localStorage.getItem('liff_orders') || '{}'); } catch { return {}; }
-}
-function updateOrder(id, patch) {
-  const o = getOrders();
-  if (o[id]) { Object.assign(o[id], patch); localStorage.setItem('liff_orders', JSON.stringify(o)); }
+async function apiCall(params) {
+  const url = API_URL + '?' + new URLSearchParams(params);
+  const res  = await fetch(url);
+  return res.json();
 }
 
-function autoExpire() {
-  const o = getOrders();
-  const now = Date.now();
-  let changed = false;
-  Object.entries(o).forEach(([id, order]) => {
-    const ts = new Date(order.ts + (order.ts.length === 16 ? ':00' : '')).getTime();
-    if (now - ts > 15 * 60 * 1000) { delete o[id]; changed = true; }
-  });
-  if (changed) localStorage.setItem('liff_orders', JSON.stringify(o));
-}
-
-function refresh() {
-  autoExpire();
-  allOrders = getOrders();
-  const all = Object.values(allOrders);
+async function refresh() {
+  try {
+    const orders = await apiCall({ action: 'getOrders' });
+    allOrders = (orders && !orders.error) ? orders : {};
+  } catch(e) {
+    allOrders = {};
+  }
+  const all    = Object.values(allOrders);
   const active = all.filter(o => o.status !== 'picked_up').length;
   document.getElementById('countLabel').textContent = `共 ${all.length} 筆｜待處理 ${active} 筆`;
   document.getElementById('headerSub').textContent  = `最後更新 ${new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
@@ -222,13 +214,15 @@ function buildQR(o) {
   } catch(e) { container.textContent = '?'; }
 }
 
-function markPlaced(id) {
-  updateOrder(id, { status: 'placed', placedAt: new Date().toISOString().slice(0,16) });
+async function markPlaced(id) {
+  const placedAt = new Date().toISOString().slice(0,16);
+  try { await apiCall({ action: 'updateOrder', data: JSON.stringify({ id, patch: { status: 'placed', placedAt } }) }); } catch(e) {}
   refresh();
 }
 
-function markPickedUp(id) {
-  updateOrder(id, { status: 'picked_up', pickedAt: new Date().toISOString().slice(0,16) });
+async function markPickedUp(id) {
+  const pickedAt = new Date().toISOString().slice(0,16);
+  try { await apiCall({ action: 'updateOrder', data: JSON.stringify({ id, patch: { status: 'picked_up', pickedAt } }) }); } catch(e) {}
   refresh();
 }
 

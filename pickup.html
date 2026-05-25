@@ -149,6 +149,8 @@
 </div>
 
 <script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbzrHgVEPUmVJ8aN2-SNZ024G6QRZWGFw4vDxNErIhrV6bEmbAPErJBUlRoGSNB6y2z-_A/exec';
+
 // ════════════════════════════════════════
 //  讀取 URL 參數
 //  支援兩種來源：
@@ -167,11 +169,22 @@ function updateOrder(id, patch) {
   if (o[id]) { Object.assign(o[id], patch); localStorage.setItem('liff_orders', JSON.stringify(o)); }
 }
 
-// ── 根據 locker 或 orderId 找訂單 ──
-function findOrder() {
-  const orders = Object.values(getOrders());
-  if (orderId) return getOrders()[orderId] || null;
-  if (locker)  return orders.find(o => o.locker === locker && o.status !== 'picked_up') || null;
+// ── 根據 locker 或 orderId 找訂單（先查 localStorage，再查 API）──
+async function findOrder() {
+  const local = Object.values(getOrders());
+  let order = null;
+  if (orderId) order = getOrders()[orderId] || null;
+  if (!order && locker) order = local.find(o => o.locker === locker && o.status !== 'picked_up') || null;
+  if (order) return order;
+
+  try {
+    const res     = await fetch(API_URL + '?action=getOrders');
+    const apiData = await res.json();
+    if (!apiData || apiData.error) return null;
+    const all = Object.values(apiData);
+    if (orderId) return apiData[orderId] || null;
+    if (locker)  return all.find(o => o.locker === locker && o.status !== 'picked_up') || null;
+  } catch(e) {}
   return null;
 }
 
@@ -184,9 +197,10 @@ function saveConfirmed(id, time) {
 // ════════════════════════════════════════
 //  頁面渲染
 // ════════════════════════════════════════
-function render() {
-  const order = findOrder();
-  const el    = document.getElementById('content');
+async function render() {
+  const el = document.getElementById('content');
+  el.innerHTML = `<div style="text-align:center;padding:40px;color:#9B7B5E">載入中…</div>`;
+  const order = await findOrder();
 
   if (!order && !locker) {
     el.innerHTML = `
@@ -299,13 +313,19 @@ function render() {
 }
 
 // ── 確認取餐 ──
-function doPickup(id) {
+async function doPickup(id) {
   const now = new Date().toLocaleString('zh-TW', {
     month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'
   });
+  const pickedAt = new Date().toISOString().slice(0,16);
 
-  updateOrder(id, { status:'picked_up', pickedAt: new Date().toISOString().slice(0,16) });
+  updateOrder(id, { status:'picked_up', pickedAt });
   saveConfirmed(id, now);
+
+  try {
+    const url = API_URL + '?action=updateOrder&data=' + encodeURIComponent(JSON.stringify({ id, patch: { status:'picked_up', pickedAt } }));
+    await fetch(url);
+  } catch(e) {}
 
   const btn  = document.getElementById('confirmBtn');
   const card = document.getElementById('confirmedCard');

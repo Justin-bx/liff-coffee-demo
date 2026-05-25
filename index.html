@@ -277,6 +277,11 @@
 </div>
 <script>
 // ════════════════════════════════════════
+//  Apps Script API
+// ════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbzrHgVEPUmVJ8aN2-SNZ024G6QRZWGFw4vDxNErIhrV6bEmbAPErJBUlRoGSNB6y2z-_A/exec';
+
+// ════════════════════════════════════════
 //  格子櫃代碼（固定 12 個）
 // ════════════════════════════════════════
 const LOCKERS = Array.from({length: 12}, (_, i) =>
@@ -423,7 +428,10 @@ function goToMenu() {
 // ════════════════════════════════════════
 //  下單
 // ════════════════════════════════════════
-function placeOrder() {
+async function placeOrder() {
+  const btn = document.querySelector('.order-btn');
+  btn.disabled = true; btn.textContent = '處理中…';
+
   const letters = 'ABCDEFGH';
   orderNumber = letters[Math.floor(Math.random()*letters.length)] +
                 String(Math.floor(Math.random()*99)+1).padStart(3,'0');
@@ -438,10 +446,20 @@ function placeOrder() {
               return { n: m.name, e: m.emoji, q: qty, v: m.price };
             }),
     t:      calcTotal(),
-    locker: assignLocker(),
     status: 'pending',
     ts:     new Date().toISOString().slice(0,16),
   };
+
+  // 呼叫 API 分配格子（由伺服器 round-robin 確保不衝突）
+  try {
+    const url = API_URL + '?action=addOrder&data=' + encodeURIComponent(JSON.stringify(orderData));
+    const res  = await fetch(url);
+    const result = await res.json();
+    if (result.locker) Object.assign(orderData, result);
+    else orderData.locker = assignLocker();
+  } catch(e) {
+    orderData.locker = assignLocker();
+  }
 
   saveOrder(orderNumber, orderData);
   generateQR(orderData);
@@ -449,6 +467,7 @@ function placeOrder() {
   document.getElementById('headerTitle').textContent = '✅ 訂單成立';
   document.getElementById('headerSub').textContent   = `訂單 #${orderNumber}`;
   document.getElementById('cartBtn').style.display   = 'none';
+  btn.disabled = false; btn.textContent = '✅ 確認下單';
   showScreen('QR');
 }
 
