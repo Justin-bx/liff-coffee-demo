@@ -83,6 +83,12 @@
       font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s;
     }
     .place-btn:hover { background: #05a847; }
+    .pickup-btn {
+      flex: 1; background: #5856D6; color: var(--white);
+      border: none; border-radius: 12px; padding: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s;
+    }
+    .pickup-btn:hover { background: #4340c4; }
     .placed-info { font-size: 13px; color: var(--green); font-weight: 600; }
     .done-info   { font-size: 13px; color: var(--gray);  font-weight: 600; }
   </style>
@@ -191,11 +197,13 @@ function cardHTML(o) {
 function actionBar(o) {
   if (o.status === 'pending') return `
     <div class="card-action">
-      <button class="place-btn" onclick="markPlaced('${o.id}')">📦 放餐完成・標記已放入</button>
+      <button class="place-btn" onclick="markPlaced('${o.id}')">📦 放餐完成</button>
+      <button class="pickup-btn" onclick="markPickedUp('${o.id}')">🎉 已取餐</button>
     </div>`;
   if (o.status === 'placed') return `
     <div class="card-action">
-      <span class="placed-info">✅ 已放入 ${(o.locker||'').toUpperCase()} — 等待客戶取餐</span>
+      <span class="placed-info" style="flex:1">✅ 已放入 ${(o.locker||'').toUpperCase()}</span>
+      <button class="pickup-btn" onclick="markPickedUp('${o.id}')">🎉 已取餐</button>
     </div>`;
   return `<div class="card-action"><span class="done-info">🎉 客戶已完成取餐</span></div>`;
 }
@@ -216,6 +224,11 @@ function buildQR(o) {
 
 function markPlaced(id) {
   updateOrder(id, { status: 'placed', placedAt: new Date().toISOString().slice(0,16) });
+  refresh();
+}
+
+function markPickedUp(id) {
+  updateOrder(id, { status: 'picked_up', pickedAt: new Date().toISOString().slice(0,16) });
   refresh();
 }
 
