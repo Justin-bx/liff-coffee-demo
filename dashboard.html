@@ -206,7 +206,7 @@ function buildQR(o) {
   const locker = o.locker || o.id;
   try {
     new QRCode(container, {
-      text: 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + locker,
+      text: locker.toUpperCase(),
       width: 92, height: 92,
       colorDark: '#4A2C1A', colorLight: '#FFFFFF',
       correctLevel: QRCode.CorrectLevel.M,
