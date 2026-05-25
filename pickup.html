@@ -278,8 +278,8 @@ function render() {
     ${order.status === 'pending' ? `
     <div class="waiting-card">
       <div class="waiting-icon">⏳</div>
-      <div class="waiting-title">飲品備製中，請稍候</div>
-      <div class="waiting-sub">工作人員完成後將放入格子，屆時請再掃碼取餐</div>
+      <div class="waiting-title">等待服務人員放餐後</div>
+      <div class="waiting-sub">請持此 QR Code，待服務人員將餐點放入格子後再掃碼取餐</div>
     </div>` : ''}
 
     ${order.status !== 'pending' ? `
