@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>智慧格子櫃點餐</title>
-  <!-- 之後接 LINE LIFF SDK：<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script> -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,6 +19,7 @@
       --text:        #2D1A0E;
       --text-muted:  #9B7B5E;
       --white:       #FFFFFF;
+      --line-green:  #06C755;
       --shadow:      0 2px 12px rgba(74,44,26,0.12);
     }
 
@@ -41,11 +42,47 @@
       position: relative;
     }
 
+    /* ── Loading Overlay ── */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--brown-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 9999;
+      transition: opacity 0.4s ease;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-emoji { font-size: 56px; animation: pulse 1.2s ease-in-out infinite; }
+    .loading-text  { color: var(--white); font-size: 16px; opacity: 0.8; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1);    opacity: 1;   }
+      50%       { transform: scale(1.12); opacity: 0.7; }
+    }
+
+    /* ── DEMO 模式 Banner ── */
+    .demo-banner {
+      display: none;
+      background: #FFF3CD;
+      border-bottom: 1px solid #FFC107;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #856404;
+      align-items: center;
+      gap: 6px;
+    }
+
     /* ── Header ── */
     .header {
       background: var(--brown-dark);
       color: var(--white);
-      padding: 16px 20px;
+      padding: 12px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -54,8 +91,23 @@
       z-index: 100;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
-    .header-title {
+    .header-left    { display: flex; align-items: center; gap: 10px; }
+    .user-avatar    {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.4);
+      object-fit: cover;
+      display: none;
+    }
+    .user-avatar-placeholder {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
       font-size: 18px;
+    }
+    .header-title {
+      font-size: 17px;
       font-weight: 700;
       letter-spacing: 0.5px;
     }
@@ -83,13 +135,9 @@
       background: var(--white);
       color: var(--accent);
       border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
     }
 
     /* ── Screens ── */
@@ -99,11 +147,9 @@
     /* ── Menu Screen ── */
     .category-label {
       padding: 16px 20px 8px;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 13px; font-weight: 600;
       color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      text-transform: uppercase; letter-spacing: 1px;
     }
     .menu-grid {
       display: grid;
@@ -116,237 +162,145 @@
       border: 1.5px solid var(--cream-dark);
       border-radius: 16px;
       padding: 16px 12px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .menu-card.has-qty {
       border-color: var(--brown-light);
       box-shadow: 0 0 0 2px rgba(200,149,108,0.2);
     }
-    .menu-emoji { font-size: 42px; line-height: 1; }
-    .menu-name { font-size: 14px; font-weight: 700; text-align: center; }
-    .menu-name-en { font-size: 11px; color: var(--text-muted); text-align: center; }
-    .menu-price { font-size: 15px; font-weight: 700; color: var(--accent); }
-    .qty-control {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 4px;
-    }
+    .menu-emoji    { font-size: 42px; line-height: 1; }
+    .menu-name     { font-size: 14px; font-weight: 700; text-align: center; }
+    .menu-name-en  { font-size: 11px; color: var(--text-muted); text-align: center; }
+    .menu-price    { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .qty-control   { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
     .qty-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
+      width: 28px; height: 28px; border-radius: 50%;
       border: 2px solid var(--brown-light);
-      background: var(--white);
-      color: var(--brown-mid);
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-      transition: background 0.15s;
+      background: var(--white); color: var(--brown-mid);
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1; transition: background 0.15s;
     }
     .qty-btn:hover { background: var(--cream-dark); }
-    .qty-btn.plus { border-color: var(--accent); color: var(--accent); }
-    .qty-num { font-size: 16px; font-weight: 700; min-width: 20px; text-align: center; }
+    .qty-btn.plus  { border-color: var(--accent); color: var(--accent); }
+    .qty-num       { font-size: 16px; font-weight: 700; min-width: 20px; text-align: center; }
 
-    /* ── Floating Cart Bar ── */
+    /* ── Float Bar ── */
     .float-bar {
-      position: fixed;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100%;
-      max-width: 480px;
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 480px;
       padding: 12px 16px;
-      background: var(--white);
-      border-top: 1px solid var(--cream-dark);
+      background: var(--white); border-top: 1px solid var(--cream-dark);
       z-index: 200;
     }
     .goto-cart-btn {
-      width: 100%;
-      background: var(--brown-dark);
-      color: var(--white);
-      border: none;
-      border-radius: 14px;
-      padding: 15px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      width: 100%; background: var(--brown-dark); color: var(--white);
+      border: none; border-radius: 14px; padding: 15px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
       transition: background 0.2s;
     }
-    .goto-cart-btn:hover { background: var(--brown-mid); }
+    .goto-cart-btn:hover    { background: var(--brown-mid); }
     .goto-cart-btn:disabled { background: var(--cream-dark); color: var(--text-muted); cursor: default; }
-    .goto-cart-right { display: flex; align-items: center; gap: 8px; }
+    .goto-cart-right        { display: flex; align-items: center; gap: 8px; }
 
     /* ── Cart Screen ── */
-    .cart-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
+    .cart-list    { flex: 1; overflow-y: auto; padding: 16px; }
+    .cart-item    {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px; background: var(--cream);
+      border-radius: 14px; margin-bottom: 10px;
     }
-    .cart-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px;
-      background: var(--cream);
-      border-radius: 14px;
-      margin-bottom: 10px;
-    }
-    .cart-item-emoji { font-size: 32px; }
-    .cart-item-info { flex: 1; }
-    .cart-item-name { font-size: 15px; font-weight: 700; }
-    .cart-item-price { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-    .cart-item-qty {
-      font-size: 13px;
-      background: var(--brown-light);
-      color: var(--white);
-      border-radius: 10px;
-      padding: 3px 10px;
-      font-weight: 700;
+    .cart-item-emoji    { font-size: 32px; }
+    .cart-item-info     { flex: 1; }
+    .cart-item-name     { font-size: 15px; font-weight: 700; }
+    .cart-item-price    { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .cart-item-qty      {
+      font-size: 13px; background: var(--brown-light); color: var(--white);
+      border-radius: 10px; padding: 3px 10px; font-weight: 700;
     }
     .cart-item-subtotal { font-size: 15px; font-weight: 700; color: var(--accent); min-width: 52px; text-align: right; }
-
-    .cart-divider { height: 1px; background: var(--cream-dark); margin: 8px 0; }
-    .cart-total-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px;
-      font-size: 18px;
-      font-weight: 700;
+    .cart-divider       { height: 1px; background: var(--cream-dark); margin: 8px 0; }
+    .cart-total-row     {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px; font-size: 18px; font-weight: 700;
     }
     .cart-total-price { color: var(--accent); font-size: 22px; }
-
     .order-btn {
       margin: 0 16px 24px;
-      background: var(--accent);
-      color: var(--white);
-      border: none;
-      border-radius: 14px;
-      padding: 16px;
-      font-size: 17px;
-      font-weight: 700;
-      cursor: pointer;
-      width: calc(100% - 32px);
-      transition: background 0.2s;
+      background: var(--accent); color: var(--white);
+      border: none; border-radius: 14px; padding: 16px;
+      font-size: 17px; font-weight: 700; cursor: pointer;
+      width: calc(100% - 32px); transition: background 0.2s;
     }
     .order-btn:hover { background: #d45520; }
 
-    .back-btn {
-      background: none;
-      border: none;
-      color: var(--brown-mid);
-      font-size: 15px;
-      cursor: pointer;
-      padding: 4px 0;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
     /* ── QR Screen ── */
-    .qr-screen {
-      align-items: center;
-      padding: 24px 20px;
-      background: var(--white);
+    .qr-screen      { align-items: center; padding: 24px 20px; background: var(--white); }
+    .qr-user-row    {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 12px; font-size: 14px; color: var(--text-muted);
     }
-    .qr-order-tag {
-      background: var(--brown-dark);
-      color: var(--white);
-      border-radius: 20px;
-      padding: 8px 24px;
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 6px;
+    .qr-user-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      object-fit: cover; border: 1.5px solid var(--cream-dark);
     }
-    .qr-order-num {
-      font-size: 48px;
-      font-weight: 900;
-      color: var(--brown-dark);
-      letter-spacing: 4px;
-      margin-bottom: 4px;
+    .qr-user-name   { font-weight: 600; color: var(--text); }
+    .qr-order-tag   {
+      background: var(--brown-dark); color: var(--white);
+      border-radius: 20px; padding: 8px 24px;
+      font-size: 14px; font-weight: 600; margin-bottom: 6px;
     }
-    .qr-hint {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 24px;
+    .qr-order-num   {
+      font-size: 48px; font-weight: 900;
+      color: var(--brown-dark); letter-spacing: 4px; margin-bottom: 4px;
     }
-    .qr-box {
-      background: var(--white);
-      border: 3px solid var(--brown-dark);
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: var(--shadow);
-      margin-bottom: 20px;
+    .qr-hint        { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+    .qr-box         {
+      background: var(--white); border: 3px solid var(--brown-dark);
+      border-radius: 20px; padding: 20px;
+      box-shadow: var(--shadow); margin-bottom: 20px;
     }
-    #qrcode canvas, #qrcode img {
-      border-radius: 8px;
-    }
-    .qr-scan-hint {
-      background: var(--cream);
-      border-radius: 12px;
-      padding: 12px 20px;
-      font-size: 14px;
-      color: var(--text-muted);
-      text-align: center;
-      margin-bottom: 24px;
-      width: 100%;
+    #qrcode canvas, #qrcode img { border-radius: 8px; }
+    .qr-scan-hint   {
+      background: var(--cream); border-radius: 12px;
+      padding: 12px 20px; font-size: 14px; color: var(--text-muted);
+      text-align: center; margin-bottom: 16px; width: 100%;
     }
     .qr-scan-hint strong { color: var(--text); }
-
     .qr-items-summary {
-      width: 100%;
-      background: var(--cream);
-      border-radius: 14px;
-      padding: 14px 16px;
-      margin-bottom: 20px;
+      width: 100%; background: var(--cream);
+      border-radius: 14px; padding: 14px 16px; margin-bottom: 16px;
     }
     .qr-items-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 13px; font-weight: 700; color: var(--text-muted);
+      margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;
     }
-    .qr-item-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 14px;
-      padding: 3px 0;
-    }
+    .qr-item-row  { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
     .qr-total-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 15px;
-      font-weight: 700;
-      padding: 8px 0 0;
-      border-top: 1px solid var(--cream-dark);
-      margin-top: 6px;
+      display: flex; justify-content: space-between;
+      font-size: 15px; font-weight: 700;
+      padding: 8px 0 0; border-top: 1px solid var(--cream-dark); margin-top: 6px;
     }
     .qr-total-row span:last-child { color: var(--accent); }
 
+    /* QR 下方按鈕組 */
+    .qr-actions   { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .close-btn    {
+      width: 100%; background: var(--line-green); color: var(--white);
+      border: none; border-radius: 14px; padding: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 0.2s;
+    }
+    .close-btn:hover   { background: #05b34c; }
+    .close-btn.hidden  { display: none; }
     .new-order-btn {
-      width: 100%;
-      background: var(--white);
-      border: 2px solid var(--brown-dark);
-      color: var(--brown-dark);
-      border-radius: 14px;
-      padding: 14px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
+      width: 100%; background: var(--white);
+      border: 2px solid var(--brown-dark); color: var(--brown-dark);
+      border-radius: 14px; padding: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
       transition: background 0.2s;
     }
     .new-order-btn:hover { background: var(--cream); }
@@ -362,11 +316,26 @@
 <body>
 <div class="app">
 
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-emoji">☕</div>
+    <div class="loading-text">載入中…</div>
+  </div>
+
+  <!-- DEMO 模式 Banner -->
+  <div class="demo-banner" id="demoBanner">
+    ⚠️ <span>DEMO 模式（瀏覽器預覽）— 在 LINE 開啟才會讀取真實用戶資料</span>
+  </div>
+
   <!-- Header -->
   <div class="header" id="appHeader">
-    <div>
-      <div class="header-title" id="headerTitle">☕ 智慧格子櫃點餐</div>
-      <div class="header-subtitle" id="headerSub">請選擇您的飲品</div>
+    <div class="header-left">
+      <img class="user-avatar" id="userAvatar" src="" alt="">
+      <div id="userAvatarPlaceholder" class="user-avatar-placeholder">☕</div>
+      <div>
+        <div class="header-title" id="headerTitle">智慧格子櫃點餐</div>
+        <div class="header-subtitle" id="headerSub">載入中…</div>
+      </div>
     </div>
     <button class="cart-btn" id="cartBtn" onclick="goToCart()">
       🛒 <span id="cartBtnLabel">購物車</span>
@@ -403,6 +372,11 @@
 
   <!-- ── Screen 3: QR Code ── -->
   <div class="screen qr-screen" id="screenQR">
+    <div class="qr-user-row" id="qrUserRow" style="display:none">
+      <img class="qr-user-avatar" id="qrUserAvatar" src="" alt="">
+      <span id="qrUserName" class="qr-user-name"></span>
+      <span>的訂單</span>
+    </div>
     <div class="qr-order-tag">取餐號碼</div>
     <div class="qr-order-num" id="qrOrderNum">A001</div>
     <div class="qr-hint">請至格子櫃掃碼取餐</div>
@@ -413,27 +387,98 @@
       📦 <strong>格子櫃工作人員掃描後</strong><br>對應格子將自動開啟
     </div>
     <div class="qr-items-summary" id="qrItemsSummary"></div>
-    <button class="new-order-btn" onclick="resetOrder()">🔄 重新點餐</button>
+    <div class="qr-actions">
+      <!-- 在 LINE 環境內顯示：關閉視窗 -->
+      <button class="close-btn hidden" id="closeBtn" onclick="closeApp()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.12-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+        完成取餐・關閉視窗
+      </button>
+      <button class="new-order-btn" onclick="resetOrder()">🔄 重新點餐</button>
+    </div>
   </div>
 
 </div>
 
 <script>
+// ════════════════════════════════════════
+//  設定區：換成你的 LIFF ID
+// ════════════════════════════════════════
+const LIFF_ID = 'YOUR_LIFF_ID';  // ← 填入 LINE Developers Console 的 LIFF ID
+
 // ── 菜單資料 ──
 const MENU = [
-  { id: 'americano', emoji: '☕', name: '美式咖啡', en: 'Americano',     price: 80  },
-  { id: 'latte',     emoji: '🥛', name: '拿鐵',     en: 'Latte',         price: 95  },
-  { id: 'cappuccino',emoji: '☁️', name: '卡布奇諾', en: 'Cappuccino',    price: 95  },
-  { id: 'mocha',     emoji: '🍫', name: '摩卡',     en: 'Mocha',         price: 105 },
-  { id: 'caramel',   emoji: '🍯', name: '焦糖瑪奇朵',en: 'Caramel Macchiato', price: 115 },
-  { id: 'matcha',    emoji: '🍵', name: '抹茶拿鐵', en: 'Matcha Latte',  price: 105 },
+  { id: 'americano',  emoji: '☕', name: '美式咖啡',   en: 'Americano',          price: 80  },
+  { id: 'latte',      emoji: '🥛', name: '拿鐵',       en: 'Latte',              price: 95  },
+  { id: 'cappuccino', emoji: '☁️', name: '卡布奇諾',   en: 'Cappuccino',         price: 95  },
+  { id: 'mocha',      emoji: '🍫', name: '摩卡',       en: 'Mocha',              price: 105 },
+  { id: 'caramel',    emoji: '🍯', name: '焦糖瑪奇朵', en: 'Caramel Macchiato',  price: 115 },
+  { id: 'matcha',     emoji: '🍵', name: '抹茶拿鐵',   en: 'Matcha Latte',       price: 105 },
 ];
 
 // ── 狀態 ──
-let cart = {};  // { itemId: quantity }
+let cart        = {};
 let orderNumber = '';
+let lineUser    = null;   // { userId, displayName, pictureUrl }
+let isInLine    = false;  // 是否在 LINE 內開啟
 
-// ── 初始化菜單 ──
+// ════════════════════════════════════════
+//  LIFF 初始化
+// ════════════════════════════════════════
+async function initApp() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    isInLine = liff.isInClient();
+
+    if (!liff.isLoggedIn()) {
+      // 未登入 → 導向 LINE 登入頁
+      liff.login({ redirectUri: location.href });
+      return;
+    }
+
+    lineUser = await liff.getProfile();
+    applyUserToUI(lineUser);
+
+    if (isInLine) {
+      document.getElementById('closeBtn').classList.remove('hidden');
+    }
+
+  } catch (err) {
+    // 不在 LINE 環境（瀏覽器預覽）→ DEMO 模式
+    console.warn('[LIFF] init failed, demo mode:', err.message);
+    enterDemoMode();
+  }
+
+  renderMenu();
+  updateCartUI();
+  hideLoading();
+}
+
+function applyUserToUI(user) {
+  const avatar = document.getElementById('userAvatar');
+  const placeholder = document.getElementById('userAvatarPlaceholder');
+  if (user.pictureUrl) {
+    avatar.src = user.pictureUrl;
+    avatar.style.display = 'block';
+    placeholder.style.display = 'none';
+  }
+  document.getElementById('headerSub').textContent = `Hi, ${user.displayName}！`;
+}
+
+function enterDemoMode() {
+  lineUser = { userId: 'demo-uid-001', displayName: 'DEMO 用戶', pictureUrl: '' };
+  document.getElementById('demoBanner').style.display = 'flex';
+  document.getElementById('headerSub').textContent = '請選擇您的飲品';
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('hidden');
+  setTimeout(() => overlay.remove(), 400);
+}
+
+// ════════════════════════════════════════
+//  菜單
+// ════════════════════════════════════════
 function renderMenu() {
   const grid = document.getElementById('menuGrid');
   grid.innerHTML = MENU.map(item => `
@@ -443,7 +488,7 @@ function renderMenu() {
       <div class="menu-name-en">${item.en}</div>
       <div class="menu-price">$${item.price}</div>
       <div class="qty-control">
-        <button class="qty-btn" onclick="updateQty('${item.id}', -1)">−</button>
+        <button class="qty-btn"      onclick="updateQty('${item.id}', -1)">−</button>
         <div class="qty-num" id="qty-${item.id}">${cart[item.id] || 0}</div>
         <button class="qty-btn plus" onclick="updateQty('${item.id}', 1)">+</button>
       </div>
@@ -451,41 +496,30 @@ function renderMenu() {
   `).join('');
 }
 
-// ── 更新數量 ──
 function updateQty(id, delta) {
-  const current = cart[id] || 0;
-  const next = Math.max(0, current + delta);
+  const next = Math.max(0, (cart[id] || 0) + delta);
   if (next === 0) delete cart[id];
   else cart[id] = next;
 
-  // 更新數字
-  const qtyEl = document.getElementById('qty-' + id);
-  if (qtyEl) qtyEl.textContent = next;
-
-  // 更新卡片樣式
+  const el = document.getElementById('qty-' + id);
+  if (el) el.textContent = next;
   const card = document.getElementById('card-' + id);
   if (card) card.className = 'menu-card ' + (next > 0 ? 'has-qty' : '');
 
   updateCartUI();
 }
 
-// ── 更新 Header 購物車狀態 ──
 function updateCartUI() {
   const totalQty   = Object.values(cart).reduce((a, b) => a + b, 0);
   const totalPrice = calcTotal();
 
-  document.getElementById('cartCount').textContent   = totalQty;
+  document.getElementById('cartCount').textContent    = totalQty;
   document.getElementById('cartBtnLabel').textContent = totalQty > 0 ? `${totalQty}件` : '購物車';
 
   const gotoBtn = document.getElementById('gotoCartBtn');
   const summary = document.getElementById('cartSummary');
-  if (totalQty > 0) {
-    gotoBtn.disabled = false;
-    summary.textContent = `${totalQty} 件 · $${totalPrice}`;
-  } else {
-    gotoBtn.disabled = true;
-    summary.textContent = '尚未選取';
-  }
+  gotoBtn.disabled = totalQty === 0;
+  summary.textContent = totalQty > 0 ? `${totalQty} 件 · $${totalPrice}` : '尚未選取';
 }
 
 function calcTotal() {
@@ -495,7 +529,9 @@ function calcTotal() {
   }, 0);
 }
 
-// ── 切換畫面 ──
+// ════════════════════════════════════════
+//  畫面切換
+// ════════════════════════════════════════
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen' + name).classList.add('active');
@@ -512,16 +548,21 @@ function goToCart() {
 }
 
 function goToMenu() {
-  document.getElementById('headerTitle').textContent = '☕ 智慧格子櫃點餐';
-  document.getElementById('headerSub').textContent   = '請選擇您的飲品';
-  document.getElementById('cartBtn').style.display   = 'flex';
+  document.getElementById('headerTitle').textContent = '智慧格子櫃點餐';
+  document.getElementById('headerSub').textContent   =
+    lineUser && lineUser.displayName !== 'DEMO 用戶'
+      ? `Hi, ${lineUser.displayName}！`
+      : '請選擇您的飲品';
+  document.getElementById('cartBtn').style.display = 'flex';
   showScreen('Menu');
 }
 
-// ── 渲染購物車 ──
+// ════════════════════════════════════════
+//  購物車
+// ════════════════════════════════════════
 function renderCart() {
   const list = document.getElementById('cartList');
-  const items = Object.entries(cart).map(([id, qty]) => {
+  list.innerHTML = Object.entries(cart).map(([id, qty]) => {
     const item = MENU.find(m => m.id === id);
     if (!item) return '';
     return `
@@ -535,72 +576,123 @@ function renderCart() {
         <div class="cart-item-subtotal">$${item.price * qty}</div>
       </div>
     `;
-  });
-  list.innerHTML = items.join('');
+  }).join('');
   document.getElementById('cartTotal').textContent = '$' + calcTotal();
 }
 
-// ── 下單 ──
-function placeOrder() {
-  // 產生訂單號 (DEMO: 隨機字母 + 數字)
+// ════════════════════════════════════════
+//  下單
+// ════════════════════════════════════════
+async function placeOrder() {
   const letters = 'ABCDEFGH';
-  const letter  = letters[Math.floor(Math.random() * letters.length)];
-  const num     = String(Math.floor(Math.random() * 99) + 1).padStart(3, '0');
-  orderNumber   = letter + num;
+  orderNumber = letters[Math.floor(Math.random() * letters.length)] +
+                String(Math.floor(Math.random() * 99) + 1).padStart(3, '0');
 
   generateQR();
   document.getElementById('headerTitle').textContent = '✅ 訂單成立';
   document.getElementById('headerSub').textContent   = `訂單 #${orderNumber}`;
   document.getElementById('cartBtn').style.display   = 'none';
   showScreen('QR');
+
+  // 在 LINE 內：送出訂單確認訊息到聊天室
+  await sendOrderMessage();
 }
 
-// ── 產生 QR Code ──
+// ════════════════════════════════════════
+//  QR Code 產生
+// ════════════════════════════════════════
 function generateQR() {
-  document.getElementById('qrOrderNum').textContent = '#' + orderNumber;
+  // QR 內容：訂單號 + LINE userId（讓格子櫃系統識別取餐人）
+  const userId  = lineUser?.userId || 'demo';
+  const payload = `ORDER:${orderNumber}|UID:${userId}|$${calcTotal()}`;
 
-  // QR 內容：短格式（訂單號 + 金額），明細顯示在頁面上
-  const payload = `ORDER:${orderNumber}|$${calcTotal()}`;
+  document.getElementById('qrOrderNum').textContent = '#' + orderNumber;
 
   const container = document.getElementById('qrcode');
   container.innerHTML = '';
   new QRCode(container, {
     text: payload,
-    width:  220,
-    height: 220,
+    width:  220, height: 220,
     colorDark:  '#4A2C1A',
     colorLight: '#FFFFFF',
     correctLevel: QRCode.CorrectLevel.M,
   });
 
+  // 使用者資訊列（有大頭貼才顯示）
+  if (lineUser && lineUser.displayName !== 'DEMO 用戶') {
+    const row = document.getElementById('qrUserRow');
+    row.style.display = 'flex';
+    document.getElementById('qrUserName').textContent = lineUser.displayName;
+    if (lineUser.pictureUrl) {
+      document.getElementById('qrUserAvatar').src = lineUser.pictureUrl;
+    }
+  }
+
   // 訂單摘要
-  const summary = document.getElementById('qrItemsSummary');
   const rows = Object.entries(cart).map(([id, qty]) => {
     const item = MENU.find(m => m.id === id);
     return `<div class="qr-item-row"><span>${item.emoji} ${item.name} ×${qty}</span><span>$${item.price * qty}</span></div>`;
   }).join('');
-  summary.innerHTML = `
+  document.getElementById('qrItemsSummary').innerHTML = `
     <div class="qr-items-title">訂單明細</div>
     ${rows}
     <div class="qr-total-row"><span>合計</span><span>$${calcTotal()}</span></div>
   `;
 }
 
-// ── 重設 ──
+// ════════════════════════════════════════
+//  LINE sendMessages：訂單確認訊息
+// ════════════════════════════════════════
+async function sendOrderMessage() {
+  if (!isInLine) return;  // 瀏覽器預覽時跳過
+
+  const itemsText = Object.entries(cart).map(([id, qty]) => {
+    const item = MENU.find(m => m.id === id);
+    return `${item.emoji} ${item.name} ×${qty}  $${item.price * qty}`;
+  }).join('\n');
+
+  try {
+    await liff.sendMessages([{
+      type: 'text',
+      text:
+        `✅ 訂單已成立！\n` +
+        `取餐號碼：#${orderNumber}\n` +
+        `─────────────\n` +
+        `${itemsText}\n` +
+        `─────────────\n` +
+        `合計：$${calcTotal()}\n\n` +
+        `📦 請至格子櫃掃碼取餐`,
+    }]);
+  } catch (err) {
+    // sendMessages 在部分情境（如 External Browser）會失敗，不影響主流程
+    console.warn('[LIFF] sendMessages failed:', err.message);
+  }
+}
+
+// ════════════════════════════════════════
+//  關閉 LIFF 視窗
+// ════════════════════════════════════════
+function closeApp() {
+  if (liff.isInClient()) {
+    liff.closeWindow();
+  }
+}
+
+// ════════════════════════════════════════
+//  重設
+// ════════════════════════════════════════
 function resetOrder() {
   cart = {};
   orderNumber = '';
+  document.getElementById('qrcode').innerHTML  = '';
+  document.getElementById('qrUserRow').style.display = 'none';
   renderMenu();
   updateCartUI();
-  document.getElementById('qrcode').innerHTML = '';
   goToMenu();
 }
 
 // ── 啟動 ──
-// TODO: 接 LINE LIFF 時在這裡加：
-// liff.init({ liffId: 'YOUR_LIFF_ID' }).then(() => { ... });
-renderMenu();
-updateCartUI();
+initApp();
 </script>
 </body>
 </html>
