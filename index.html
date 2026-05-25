@@ -599,12 +599,37 @@ async function placeOrder() {
 }
 
 // ════════════════════════════════════════
+//  Base64 編解碼（支援中文 / Unicode）
+// ════════════════════════════════════════
+function encodeOrder(data) {
+  const json = JSON.stringify(data);
+  // URL-safe base64：+ → -, / → _, 去掉 = padding（避免 URLSearchParams 把 + 解成空格）
+  return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, h) =>
+    String.fromCharCode(parseInt(h, 16))
+  )).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+// ════════════════════════════════════════
 //  QR Code 產生
 // ════════════════════════════════════════
 function generateQR() {
-  // QR 內容：訂單號 + LINE userId（讓格子櫃系統識別取餐人）
-  const userId  = lineUser?.userId || 'demo';
-  const payload = `ORDER:${orderNumber}|UID:${userId}|$${calcTotal()}`;
+  // 訂單資料編碼進 URL，掃碼直接開後台取餐頁
+  const orderData = {
+    id:    orderNumber,
+    u:     lineUser?.displayName || 'DEMO 用戶',
+    pic:   lineUser?.pictureUrl  || '',
+    uid:   lineUser?.userId      || 'demo',
+    items: Object.entries(cart).map(([itemId, qty]) => {
+      const item = MENU.find(m => m.id === itemId);
+      return { n: item.name, e: item.emoji, q: qty, v: item.price };
+    }),
+    t:  calcTotal(),
+    ts: new Date().toISOString().slice(0, 16),
+  };
+
+  const b64      = encodeOrder(orderData);
+  const base     = location.href.replace(/\/[^/]*$/, '/');   // 相對路徑，本機 & Pages 都能用
+  const payload  = `${base}pickup.html?d=${b64}`;
 
   document.getElementById('qrOrderNum').textContent = '#' + orderNumber;
 
