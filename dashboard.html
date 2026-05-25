@@ -8,184 +8,81 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --brown:  #4A2C1A; --cream: #F9F4EE; --border: #EDE4D8;
-      --white:  #FFFFFF; --text:  #2D1A0E; --muted:  #9B7B5E;
-      --green:  #06C755; --yellow:#FF9500; --red:    #E8622A; --gray: #8E8E93;
+      --brown: #4A2C1A; --cream: #F9F4EE; --border: #EDE4D8;
+      --white: #FFFFFF; --text: #2D1A0E; --muted: #9B7B5E;
+      --green: #06C755; --yellow: #FF9500; --red: #E8622A; --gray: #8E8E93;
     }
     body {
       font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
       background: #F0EDE8; min-height: 100vh;
     }
+
     .header {
       background: var(--brown); color: var(--white); padding: 14px 20px;
       display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
     .header-title { font-size: 17px; font-weight: 700; }
     .header-sub   { font-size: 11px; opacity: 0.6; margin-top: 2px; }
-    .staff-badge  {
-      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 12px; padding: 4px 10px; font-size: 11px; font-weight: 600;
-    }
+    .badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; padding: 4px 10px; font-size: 11px; font-weight: 600; }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex; background: var(--white); border-bottom: 1px solid var(--border);
-      position: sticky; top: 57px; z-index: 90;
-    }
-    .tab {
-      flex: 1; padding: 12px 4px; border: none; background: none;
-      font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
-      border-bottom: 2px solid transparent; transition: all 0.2s;
-    }
-    .tab.active { color: var(--brown); border-bottom-color: var(--brown); }
-    .tab-count  {
-      display: inline-flex; align-items: center; justify-content: center;
-      background: var(--border); color: var(--text);
-      border-radius: 10px; min-width: 18px; height: 18px;
-      font-size: 11px; padding: 0 5px; margin-left: 4px;
-    }
-    .tab.active .tab-count { background: var(--brown); color: var(--white); }
-
-    /* ── Content ── */
-    .content { padding: 12px; max-width: 720px; margin: 0 auto; }
-    .toolbar {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 4px 4px; margin-bottom: 4px;
-    }
-    .count-label  { font-size: 12px; color: var(--muted); }
-    .refresh-btn  {
-      background: var(--white); border: 1.5px solid var(--border);
-      border-radius: 10px; padding: 5px 12px; font-size: 12px;
-      color: var(--muted); cursor: pointer;
-    }
+    .content { padding: 12px; max-width: 600px; margin: 0 auto; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px 6px; }
+    .count-label { font-size: 12px; color: var(--muted); }
+    .refresh-btn { background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 5px 12px; font-size: 12px; color: var(--muted); cursor: pointer; }
     .refresh-btn:hover { border-color: var(--brown); color: var(--brown); }
 
-    /* ── Empty ── */
-    .empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 15px; }
+    .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
 
-    /* ── Order Card ── */
+    /* ── 訂單卡 ── */
     .order-card {
       background: var(--white); border-radius: 16px; margin-bottom: 12px;
       overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       animation: fadeIn 0.25s ease;
     }
     @keyframes fadeIn { from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);} }
+    .card-body { display: flex; gap: 12px; padding: 16px; }
+    .card-main { flex: 1; min-width: 0; }
+    .card-qr   { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 
-    .card-body  { display: flex; gap: 12px; padding: 16px; }
-    .card-main  { flex: 1; min-width: 0; }
-    .card-qr    { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-    .qr-cell    {
-      width: 90px; height: 90px; border: 2px solid var(--brown); border-radius: 10px;
-      overflow: hidden; background: var(--white);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .qr-cell canvas, .qr-cell img { width: 86px !important; height: 86px !important; }
-    .qr-label   { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.3; }
-    .qr-code-text {
-      font-size: 10px; font-family: monospace; color: var(--brown);
-      font-weight: 700; text-align: center; word-break: break-all;
-    }
-
-    .order-header {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
-    }
-    .order-num  { font-size: 20px; font-weight: 900; color: var(--brown); letter-spacing: 2px; }
-    .order-time { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-
-    .status-badge   { border-radius: 14px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
-    .s-pending      { background:#FFF3E0; color:var(--yellow); border:1.5px solid #FFD180; }
-    .s-placed       { background:#E8F5E9; color:var(--green);  border:1.5px solid #A5D6A7; }
-    .s-picked_up    { background:#F5F5F5; color:var(--gray);   border:1.5px solid #E0E0E0; }
-
-    .locker-row     {
-      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
-    }
-    .locker-tag     {
+    .order-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .locker-tag {
       background: var(--brown); color: var(--white);
-      border-radius: 8px; padding: 3px 10px;
-      font-size: 12px; font-weight: 700; font-family: monospace;
+      border-radius: 8px; padding: 4px 12px;
+      font-size: 14px; font-weight: 800; font-family: monospace; letter-spacing: 1px;
     }
+    .status-badge { border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+    .s-pending   { background: #FFF3E0; color: var(--yellow); border: 1.5px solid #FFD180; }
+    .s-placed    { background: #E8F5E9; color: var(--green);  border: 1.5px solid #A5D6A7; }
+    .s-picked_up { background: #F5F5F5; color: var(--gray);   border: 1.5px solid #E0E0E0; }
 
-    .cust-row   { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .cust-avatar {
-      width: 26px; height: 26px; border-radius: 50%;
-      object-fit: cover; border: 1.5px solid var(--border);
-    }
-    .cust-ph    {
-      width: 26px; height: 26px; border-radius: 50%;
-      background: var(--cream); display: flex; align-items: center;
-      justify-content: center; font-size: 13px;
-    }
-    .cust-name  { font-size: 14px; font-weight: 600; }
+    .order-time { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
 
-    .item-list  { margin-bottom: 8px; }
-    .item-row   {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--border);
-    }
+    .item-list { margin-bottom: 8px; }
+    .item-row  { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
     .item-row:last-child { border-bottom: none; }
-    .item-left  { display: flex; align-items: center; gap: 6px; }
-    .item-qty   {
-      background: var(--brown); color: var(--white);
-      border-radius: 8px; padding: 1px 7px; font-size: 11px; font-weight: 700;
-    }
-    .total-row  {
-      display: flex; justify-content: space-between; align-items: center;
-      padding-top: 8px; border-top: 1.5px solid var(--border); margin-top: 4px;
-    }
+    .item-left { display: flex; align-items: center; gap: 6px; }
+    .item-qty  { background: var(--brown); color: var(--white); border-radius: 6px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
+    .total-row { display: flex; justify-content: space-between; padding-top: 8px; border-top: 1.5px solid var(--border); }
     .total-label { font-size: 13px; color: var(--muted); }
     .total-amt   { font-size: 16px; font-weight: 900; color: var(--red); }
 
-    /* ── Action bar ── */
-    .card-action {
-      padding: 12px 16px; border-top: 1px solid var(--border);
-      background: var(--cream); display: flex; align-items: center; gap: 8px;
-    }
-    .locker-input {
-      width: 70px; padding: 8px 10px; border: 1.5px solid var(--border);
-      border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center;
-      background: var(--white);
-    }
-    .locker-input:focus { outline: none; border-color: var(--brown); }
-    .locker-hint  { font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .place-btn    {
+    .qr-cell { width: 96px; height: 96px; border: 2px solid var(--brown); border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--white); }
+    .qr-cell canvas, .qr-cell img { width: 92px !important; height: 92px !important; }
+    .qr-label { font-size: 10px; color: var(--muted); text-align: center; }
+    .qr-locker { font-size: 9px; font-family: monospace; color: var(--brown); font-weight: 700; text-align: center; }
+
+    /* ── 底部動作列 ── */
+    .card-action { padding: 10px 16px; border-top: 1px solid var(--border); background: var(--cream); display: flex; align-items: center; gap: 8px; }
+    .place-btn {
       flex: 1; background: var(--green); color: var(--white);
       border: none; border-radius: 12px; padding: 10px;
       font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s;
     }
     .place-btn:hover { background: #05a847; }
-    .placed-info  { font-size: 13px; color: var(--green); font-weight: 600; }
-    .done-info    { font-size: 13px; color: var(--gray); font-weight: 600; }
-
-    /* ── Locker picker modal ── */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-      z-index: 200; align-items: center; justify-content: center;
-    }
-    .modal-overlay.show { display: flex; }
-    .modal-box {
-      background: var(--white); border-radius: 20px; padding: 24px 20px;
-      width: calc(100% - 40px); max-width: 380px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    }
-    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-    .modal-sub   { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
-    .locker-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;
-    }
-    .locker-btn {
-      border: 2px solid var(--border); border-radius: 10px; padding: 10px 4px;
-      font-size: 12px; font-weight: 700; font-family: monospace; cursor: pointer;
-      background: var(--white); transition: all 0.15s; text-align: center;
-    }
-    .locker-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
-    .locker-btn:disabled { background: #F5F5F5; color: var(--gray); cursor: not-allowed; opacity: 0.5; }
-    .modal-cancel {
-      width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px;
-      background: var(--white); font-size: 14px; color: var(--muted); cursor: pointer;
-    }
+    .placed-info { font-size: 13px; color: var(--green); font-weight: 600; }
+    .done-info   { font-size: 13px; color: var(--gray);  font-weight: 600; }
   </style>
 </head>
 <body>
@@ -193,16 +90,9 @@
 <div class="header">
   <div>
     <div class="header-title">📋 訂單後台管理</div>
-    <div class="header-sub">格子櫃點餐管理系統</div>
+    <div class="header-sub" id="headerSub">自動更新中…</div>
   </div>
-  <div class="staff-badge">STAFF</div>
-</div>
-
-<div class="tabs">
-  <button class="tab active" data-f="all"       onclick="setFilter('all')">全部<span class="tab-count" id="cnt-all">0</span></button>
-  <button class="tab"        data-f="pending"   onclick="setFilter('pending')">待放餐<span class="tab-count" id="cnt-pending">0</span></button>
-  <button class="tab"        data-f="placed"    onclick="setFilter('placed')">已放入<span class="tab-count" id="cnt-placed">0</span></button>
-  <button class="tab"        data-f="picked_up" onclick="setFilter('picked_up')">已取餐<span class="tab-count" id="cnt-picked_up">0</span></button>
+  <div class="badge">STAFF</div>
 </div>
 
 <div class="content">
@@ -213,24 +103,9 @@
   <div id="orderList"></div>
 </div>
 
-<!-- 格子選擇彈窗 -->
-<div class="modal-overlay" id="lockerModal">
-  <div class="modal-box">
-    <div class="modal-title">📦 選擇放餐格子</div>
-    <div class="modal-sub">請選擇要放入的格子（灰色代表使用中）</div>
-    <div class="locker-grid" id="lockerGrid"></div>
-    <button class="modal-cancel" onclick="closeModal()">取消</button>
-  </div>
-</div>
-
 <script>
-const LOCKERS = Array.from({length:12}, (_,i) => 'everbrite' + String(i+1).padStart(3,'0'));
+let allOrders = {};
 
-let allOrders  = {};
-let filter     = 'all';
-let pickingFor = null;  // orderId 等待選格子
-
-// ── 讀取 localStorage ──
 function getOrders() {
   try { return JSON.parse(localStorage.getItem('liff_orders') || '{}'); } catch { return {}; }
 }
@@ -239,58 +114,32 @@ function updateOrder(id, patch) {
   if (o[id]) { Object.assign(o[id], patch); localStorage.setItem('liff_orders', JSON.stringify(o)); }
 }
 
-// ── 自動輪詢（1.5s）──
-function startPolling() { setInterval(refresh, 1500); }
-
 function refresh() {
   allOrders = getOrders();
-  updateCounts();
-  renderList();
-}
-
-function updateCounts() {
   const all = Object.values(allOrders);
-  document.getElementById('cnt-all').textContent      = all.length;
-  document.getElementById('cnt-pending').textContent  = all.filter(o=>o.status==='pending').length;
-  document.getElementById('cnt-placed').textContent   = all.filter(o=>o.status==='placed').length;
-  document.getElementById('cnt-picked_up').textContent= all.filter(o=>o.status==='picked_up').length;
-  document.getElementById('countLabel').textContent   = `共 ${all.length} 筆訂單`;
-}
-
-function setFilter(f) {
-  filter = f;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.f === f));
+  const active = all.filter(o => o.status !== 'picked_up').length;
+  document.getElementById('countLabel').textContent = `共 ${all.length} 筆｜待處理 ${active} 筆`;
+  document.getElementById('headerSub').textContent  = `最後更新 ${new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
   renderList();
 }
 
-// ════════════════════════════════════════
-//  渲染訂單列表
-// ════════════════════════════════════════
 function renderList() {
   const list = document.getElementById('orderList');
-  let orders = Object.values(allOrders).sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
-  if (filter !== 'all') orders = orders.filter(o => o.status === filter);
-
+  const orders = Object.values(allOrders).sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
   if (!orders.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">${filter==='all'?'📭':'✅'}</div>目前沒有訂單</div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div>目前沒有訂單</div>`;
     return;
   }
-
   list.innerHTML = orders.map(o => cardHTML(o)).join('');
-  // innerHTML 替換後重新建 QR（每次 render 都要建，因為 DOM 已重置）
   orders.forEach(o => buildQR(o));
 }
 
 function cardHTML(o) {
-  const statusBadge = {
+  const badge = {
     pending:   `<span class="status-badge s-pending">⏳ 待放餐</span>`,
     placed:    `<span class="status-badge s-placed">✅ 已放入</span>`,
     picked_up: `<span class="status-badge s-picked_up">🎉 已取餐</span>`,
   }[o.status] || '';
-
-  const avatarHTML = o.pic
-    ? `<img class="cust-avatar" src="${o.pic}" onerror="this.style.display='none'">`
-    : `<div class="cust-ph">👤</div>`;
 
   const itemsHTML = (o.items||[]).map(i => `
     <div class="item-row">
@@ -298,20 +147,17 @@ function cardHTML(o) {
       <span>$${i.v*i.q}</span>
     </div>`).join('');
 
+  const locker = (o.locker || '').toUpperCase();
+
   return `
     <div class="order-card" id="card-${o.id}">
       <div class="card-body">
         <div class="card-main">
-          <div class="order-header">
-            <span class="order-num">#${o.id}</span>${statusBadge}
+          <div class="order-top">
+            <span class="locker-tag">${locker || '—'}</span>
+            ${badge}
           </div>
-          <div class="order-time">下單：${fmtTime(o.ts)}</div>
-          ${o.locker ? `
-          <div class="locker-row">
-            <span style="font-size:12px;color:var(--muted)">格子代碼</span>
-            <span class="locker-tag">${o.locker.toUpperCase()}</span>
-          </div>` : ''}
-          <div class="cust-row">${avatarHTML}<span class="cust-name">${o.u||'—'}</span></div>
+          <div class="order-time">訂單 #${o.id}　${fmtTime(o.ts)}</div>
           <div class="item-list">${itemsHTML}</div>
           <div class="total-row">
             <span class="total-label">合計</span>
@@ -320,8 +166,8 @@ function cardHTML(o) {
         </div>
         <div class="card-qr">
           <div class="qr-cell" id="qr-${o.id}"></div>
-          <div class="qr-label">客戶取餐 QR</div>
-          <div class="qr-code-text">${o.locker ? o.locker.toUpperCase() : '#'+o.id}</div>
+          <div class="qr-label">放餐 QR</div>
+          <div class="qr-locker">${locker}</div>
         </div>
       </div>
       ${actionBar(o)}
@@ -331,62 +177,31 @@ function cardHTML(o) {
 function actionBar(o) {
   if (o.status === 'pending') return `
     <div class="card-action">
-      <button class="place-btn" onclick="openLockerPicker('${o.id}')">📦 選格子・放入餐點</button>
+      <button class="place-btn" onclick="markPlaced('${o.id}')">📦 放餐完成・標記已放入</button>
     </div>`;
   if (o.status === 'placed') return `
     <div class="card-action">
-      <span class="placed-info">✅ 已放入 ${o.locker.toUpperCase()} — 等待客戶取餐</span>
+      <span class="placed-info">✅ 已放入 ${(o.locker||'').toUpperCase()} — 等待客戶取餐</span>
     </div>`;
   return `<div class="card-action"><span class="done-info">🎉 客戶已完成取餐</span></div>`;
 }
 
-// ── 產生 QR（取餐 URL）──
 function buildQR(o) {
   const container = document.getElementById('qr-' + o.id);
   if (!container || container.childElementCount > 0) return;
-  const url = o.locker
-    ? 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + o.locker
-    : 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?id=' + o.id;
+  const locker = o.locker || o.id;
   try {
     new QRCode(container, {
-      text: url,
-      width: 86, height: 86,
+      text: 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + locker,
+      width: 92, height: 92,
       colorDark: '#4A2C1A', colorLight: '#FFFFFF',
       correctLevel: QRCode.CorrectLevel.M,
     });
   } catch(e) { container.textContent = '?'; }
 }
 
-// ── 格子選擇彈窗 ──
-function openLockerPicker(orderId) {
-  pickingFor = orderId;
-  const inUse = new Set(
-    Object.values(allOrders)
-      .filter(o => o.status === 'placed' && o.locker)
-      .map(o => o.locker)
-  );
-  const grid = document.getElementById('lockerGrid');
-  grid.innerHTML = LOCKERS.map(l => `
-    <button class="locker-btn" ${inUse.has(l) ? 'disabled title="使用中"' : ''}
-            onclick="confirmLocker('${l}')">
-      ${l.replace('everbrite','').replace(/^0+/,'')}
-    </button>`).join('');
-  document.getElementById('lockerModal').classList.add('show');
-}
-
-function closeModal() {
-  document.getElementById('lockerModal').classList.remove('show');
-  pickingFor = null;
-}
-
-function confirmLocker(locker) {
-  if (!pickingFor) return;
-  updateOrder(pickingFor, {
-    status:   'placed',
-    locker:   locker,
-    placedAt: new Date().toISOString().slice(0,16),
-  });
-  closeModal();
+function markPlaced(id) {
+  updateOrder(id, { status: 'placed', placedAt: new Date().toISOString().slice(0,16) });
   refresh();
 }
 
@@ -397,9 +212,8 @@ function fmtTime(iso) {
   return d.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
-// ── 啟動 ──
 refresh();
-startPolling();
+setInterval(refresh, 2000);
 </script>
 </body>
 </html>

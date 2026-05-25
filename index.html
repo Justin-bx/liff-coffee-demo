@@ -261,12 +261,12 @@
 
   <!-- Screen 3: QR -->
   <div class="screen qr-screen" id="screenQR">
-    <div class="locker-badge">您的訂單編號</div>
-    <div class="qr-order-num" id="qrOrderNum"></div>
-    <div class="qr-hint">持此 QR Code，等待服務人員放餐後掃碼取餐</div>
+    <div class="locker-badge">您的取餐格子</div>
+    <div class="locker-code" id="lockerCode">—</div>
+    <div class="qr-hint">掃描下方 QR Code 即可取餐</div>
     <div class="qr-box"><div id="qrcode"></div></div>
     <div class="qr-scan-hint">
-      📦 <strong>服務人員備餐完成後</strong><br>會將飲品放入格子，屆時請掃碼取餐
+      📦 <strong>服務人員備餐後會放入格子</strong><br>請保留此頁面，到格子掃碼取餐
     </div>
     <div class="qr-items-summary" id="qrItemsSummary"></div>
     <div class="qr-actions">
@@ -308,6 +308,26 @@ function getOrders() {
 function saveOrder(id, data) {
   const o = getOrders(); o[id] = data;
   localStorage.setItem('liff_orders', JSON.stringify(o));
+}
+
+// ── 格子自動分配（round-robin）──
+function assignLocker() {
+  const inUse = new Set(
+    Object.values(getOrders())
+      .filter(o => o.status !== 'picked_up')
+      .map(o => o.locker).filter(Boolean)
+  );
+  const last = parseInt(localStorage.getItem('last_locker_idx') ?? '-1', 10);
+  for (let i = 1; i <= LOCKERS.length; i++) {
+    const idx = (last + i) % LOCKERS.length;
+    if (!inUse.has(LOCKERS[idx])) {
+      localStorage.setItem('last_locker_idx', idx);
+      return LOCKERS[idx];
+    }
+  }
+  const idx = (last + 1) % LOCKERS.length;
+  localStorage.setItem('last_locker_idx', idx);
+  return LOCKERS[idx];
 }
 
 // ════════════════════════════════════════
@@ -418,7 +438,7 @@ function placeOrder() {
               return { n: m.name, e: m.emoji, q: qty, v: m.price };
             }),
     t:      calcTotal(),
-    locker: '',
+    locker: assignLocker(),
     status: 'pending',
     ts:     new Date().toISOString().slice(0,16),
   };
@@ -433,24 +453,21 @@ function placeOrder() {
 }
 
 // ════════════════════════════════════════
-//  QR Code 產生（內容 = 訂單查詢 URL）
+//  QR Code 產生（內容 = 格子取餐 URL）
 // ════════════════════════════════════════
 function generateQR(orderData) {
-  document.getElementById('qrOrderNum').textContent = '#' + orderData.id;
+  document.getElementById('lockerCode').textContent = orderData.locker.toUpperCase();
 
   const container = document.getElementById('qrcode');
   container.innerHTML = '';
 
-  // QR 內容：訂單查詢 URL，格子由員工後台指定後頁面會顯示
-  const pickupURL = 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?id=' + orderData.id;
   new QRCode(container, {
-    text: pickupURL,
+    text: 'https://justin-bx.github.io/liff-coffee-demo/pickup.html?locker=' + orderData.locker,
     width: 220, height: 220,
     colorDark: '#4A2C1A', colorLight: '#FFFFFF',
     correctLevel: QRCode.CorrectLevel.M,
   });
 
-  // 訂單摘要
   const rows = orderData.items.map(i =>
     `<div class="qr-item-row"><span>${i.e} ${i.n} ×${i.q}</span><span>$${i.v*i.q}</span></div>`
   ).join('');
