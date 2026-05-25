@@ -221,8 +221,7 @@ async function markPlaced(id) {
 }
 
 async function markPickedUp(id) {
-  const pickedAt = new Date().toISOString().slice(0,16);
-  try { await apiCall({ action: 'updateOrder', data: JSON.stringify({ id, patch: { status: 'picked_up', pickedAt } }) }); } catch(e) {}
+  try { await apiCall({ action: 'deleteOrder', data: JSON.stringify({ id }) }); } catch(e) {}
   refresh();
 }
 
