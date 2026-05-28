@@ -1,137 +1,147 @@
 const SHEET_ID = '1LxvA2Tnvw_pA8LuVjK70V6VRA-ZxBeL3Wl5mrM4Vtr0';
 const LOCKERS  = Array.from({length:12}, (_,i) => 'everbrite' + String(i+1).padStart(3,'0'));
-const CACHE_KEY = 'orders_cache';
-const CACHE_TTL = 5; // seconds
 
+// ── 所有請求統一走 GET（避免 CORS preflight 問題）──
 function doGet(e) {
   try {
     const action = e.parameter.action || 'getOrders';
     let result;
-    if (action === 'getOrders')        result = getOrders();
-    else if (action === 'addOrder')    result = addOrder(JSON.parse(e.parameter.data));
-    else if (action === 'updateOrder') { const {id,patch} = JSON.parse(e.parameter.data); result = updateOrder(id, patch); }
-    else if (action === 'deleteOrder') { result = deleteOrder(JSON.parse(e.parameter.data).id); }
-    else if (action === 'clearOrders') { result = clearOrders(); }
-    else                               result = {error:'unknown action'};
-    return jsonR(result);
-  } catch(err) { return jsonR({error: err.message}); }
+
+    if (action === 'getOrders') {
+      result = getOrders();
+    } else if (action === 'addOrder') {
+      const order = JSON.parse(e.parameter.data);
+      result = addOrder(order);
+    } else if (action === 'updateOrder') {
+      const { id, patch } = JSON.parse(e.parameter.data);
+      result = updateOrder(id, patch);
+    } else {
+      result = { error: 'unknown action' };
+    }
+
+    return jsonResp(result);
+  } catch(err) {
+    return jsonResp({ error: err.message });
+  }
 }
 
+// ── 讀取所有訂單（同時清除超過 15 分鐘的訂單）──
 function getOrders() {
-  // 先查快取
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get(CACHE_KEY);
-  if (cached) return JSON.parse(cached);
+  const sheet = getSheet();
+  const data  = sheet.getDataRange().getValues();
+  if (data.length <= 1) return {};
 
-  // 讀試算表，只過濾不刪除（刪除交給 addOrder）
-  const s = getSheet(), d = s.getDataRange().getValues();
-  if (d.length <= 1) {
-    cache.put(CACHE_KEY, '{}', CACHE_TTL);
-    return {};
-  }
+  const headers  = data[0];
+  const now      = Date.now();
+  const orders   = {};
+  const expRows  = [];
 
-  const h = d[0], now = Date.now(), orders = {};
-  for (let i = 1; i < d.length; i++) {
-    if (!d[i][0]) continue;
-    const o = {}; h.forEach((k,j) => { o[k] = d[i][j]; });
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[0]) continue;
+
+    const o = {};
+    headers.forEach((h, j) => { o[h] = row[j]; });
     try { o.items = JSON.parse(o.items); } catch(_) { o.items = []; }
     o.t = Number(o.t);
-    const ts = new Date(String(o.ts).length === 16 ? o.ts+':00' : o.ts).getTime();
-    if (now - ts <= 15*60*1000) orders[o.id] = o; // 過期的直接跳過，不刪
+
+    const ts = new Date(String(o.ts).length === 16 ? o.ts + ':00' : o.ts).getTime();
+    if (now - ts > 15 * 60 * 1000) {
+      expRows.push(i + 1);          // 記錄要刪除的列（試算表列號）
+    } else {
+      orders[o.id] = o;
+    }
   }
 
-  cache.put(CACHE_KEY, JSON.stringify(orders), CACHE_TTL);
+  // 從下往上刪，避免列號偏移
+  for (let i = expRows.length - 1; i >= 0; i--) {
+    sheet.deleteRow(expRows[i]);
+  }
+
   return orders;
 }
 
+// ── 新增訂單（含格子分配，使用 Lock 防止並發衝突）──
 function addOrder(order) {
   const lock = LockService.getScriptLock();
   lock.waitLock(8000);
+
   try {
-    const s = getSheet(); ensureH(s);
+    const sheet = getSheet();
+    ensureHeaders(sheet);
 
-    // 清除快取，順便刪除過期列
-    CacheService.getScriptCache().remove(CACHE_KEY);
-    purgeExpired(s);
+    // 讀取目前使用中的格子
+    const orders = getOrders();
+    const inUse  = new Set(
+      Object.values(orders)
+        .filter(o => o.status !== 'picked_up')
+        .map(o => o.locker).filter(Boolean)
+    );
 
-    const orders = getOrdersFromSheet(s);
-    const inUse = new Set(Object.values(orders).filter(o=>o.status!=='picked_up').map(o=>o.locker).filter(Boolean));
-    const p = PropertiesService.getScriptProperties();
-    const last = parseInt(p.getProperty('li') || '-1', 10);
-    let idx = (last+1) % 12;
-    for (let i = 1; i <= 12; i++) { const j=(last+i)%12; if(!inUse.has(LOCKERS[j])){ idx=j; break; } }
-    p.setProperty('li', String(idx));
-    order.locker = LOCKERS[idx];
+    // 從上次使用的格子往後找
+    const props   = PropertiesService.getScriptProperties();
+    const lastIdx = parseInt(props.getProperty('last_locker_idx') || '-1', 10);
+    let assignedIdx = (lastIdx + 1) % 12;
 
-    const h = ['id','u','pic','uid','items','t','locker','status','ts','placedAt','pickedAt'];
-    s.appendRow(h.map(k => k==='items' ? JSON.stringify(order.items||[]) : k==='t' ? order.t||0 : order[k]||''));
+    for (let i = 1; i <= 12; i++) {
+      const idx = (lastIdx + i) % 12;
+      if (!inUse.has(LOCKERS[idx])) {
+        assignedIdx = idx;
+        break;
+      }
+    }
 
-    CacheService.getScriptCache().remove(CACHE_KEY);
+    props.setProperty('last_locker_idx', String(assignedIdx));
+    order.locker = LOCKERS[assignedIdx];
+
+    // 寫入試算表
+    const headers = ['id','u','pic','uid','items','t','locker','status','ts','placedAt','pickedAt'];
+    const row = headers.map(h => {
+      if (h === 'items') return JSON.stringify(order.items || []);
+      if (h === 't')     return order.t || 0;
+      return order[h] || '';
+    });
+    sheet.appendRow(row);
+
     return order;
-  } finally { lock.releaseLock(); }
+  } finally {
+    lock.releaseLock();
+  }
 }
 
+// ── 更新訂單欄位 ──
 function updateOrder(id, patch) {
-  const s=getSheet(), d=s.getDataRange().getValues(), h=d[0], c=h.indexOf('id');
-  for (let i=1; i<d.length; i++) {
-    if (String(d[i][c]) === String(id)) {
-      Object.entries(patch).forEach(([k,v]) => { const j=h.indexOf(k); if(j>=0) s.getRange(i+1,j+1).setValue(v); });
-      CacheService.getScriptCache().remove(CACHE_KEY);
-      return {success:true};
+  const sheet   = getSheet();
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idCol   = headers.indexOf('id');
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(id)) {
+      Object.entries(patch).forEach(([key, val]) => {
+        const col = headers.indexOf(key);
+        if (col >= 0) sheet.getRange(i + 1, col + 1).setValue(val);
+      });
+      return { success: true };
     }
   }
-  return {error:'not found'};
+  return { error: 'not found' };
 }
 
-function clearOrders() {
-  const s = getSheet();
-  if (s.getLastRow() > 1) s.deleteRows(2, s.getLastRow() - 1);
-  CacheService.getScriptCache().remove(CACHE_KEY);
-  return {success: true};
+// ── 工具函式 ──
+function getSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  return ss.getSheetByName('orders') || ss.insertSheet('orders');
 }
 
-function deleteOrder(id) {
-  const s=getSheet(), d=s.getDataRange().getValues(), h=d[0], c=h.indexOf('id');
-  for (let i=1; i<d.length; i++) {
-    if (String(d[i][c]) === String(id)) {
-      s.deleteRow(i+1);
-      CacheService.getScriptCache().remove(CACHE_KEY);
-      return {success:true};
-    }
-  }
-  return {error:'not found'};
+function ensureHeaders(sheet) {
+  const headers  = ['id','u','pic','uid','items','t','locker','status','ts','placedAt','pickedAt'];
+  const firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  if (!firstRow[0]) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 }
 
-// 刪除超過 15 分鐘的列（只在 addOrder 時呼叫）
-function purgeExpired(s) {
-  const d = s.getDataRange().getValues();
-  if (d.length <= 1) return;
-  const h = d[0], now = Date.now(), exp = [];
-  for (let i = 1; i < d.length; i++) {
-    if (!d[i][0]) continue;
-    const o = {}; h.forEach((k,j) => { o[k] = d[i][j]; });
-    const ts = new Date(String(o.ts).length === 16 ? o.ts+':00' : o.ts).getTime();
-    if (now - ts > 15*60*1000) exp.push(i+1);
-  }
-  for (let i = exp.length-1; i >= 0; i--) s.deleteRow(exp[i]);
+function jsonResp(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
-
-// 直接讀試算表（不走快取，供 addOrder 內部用）
-function getOrdersFromSheet(s) {
-  const d = s.getDataRange().getValues();
-  if (d.length <= 1) return {};
-  const h = d[0], now = Date.now(), orders = {};
-  for (let i = 1; i < d.length; i++) {
-    if (!d[i][0]) continue;
-    const o = {}; h.forEach((k,j) => { o[k] = d[i][j]; });
-    try { o.items = JSON.parse(o.items); } catch(_) { o.items = []; }
-    o.t = Number(o.t);
-    const ts = new Date(String(o.ts).length === 16 ? o.ts+':00' : o.ts).getTime();
-    if (now - ts <= 15*60*1000) orders[o.id] = o;
-  }
-  return orders;
-}
-
-function getSheet() { const ss=SpreadsheetApp.openById(SHEET_ID); return ss.getSheetByName('orders')||ss.insertSheet('orders'); }
-function ensureH(s) { const h=['id','u','pic','uid','items','t','locker','status','ts','placedAt','pickedAt']; if(!s.getRange(1,1).getValue()) s.getRange(1,1,1,h.length).setValues([h]); }
-function jsonR(d) { return ContentService.createTextOutput(JSON.stringify(d)).setMimeType(ContentService.MimeType.JSON); }

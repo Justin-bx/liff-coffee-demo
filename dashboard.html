@@ -99,6 +99,7 @@
   <div>
     <div class="header-title">📋 訂單後台管理</div>
     <div class="header-sub" id="headerSub">自動更新中…</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:1px;">v1.0</div>
   </div>
   <div class="badge">STAFF</div>
 </div>
@@ -159,7 +160,7 @@ function cardHTML(o) {
       <span>$${i.v*i.q}</span>
     </div>`).join('');
 
-  const locker = (o.locker || '').toUpperCase();
+  const locker = (o.locker || '').toLowerCase();
 
   return `
     <div class="order-card" id="card-${o.id}">
@@ -194,7 +195,7 @@ function actionBar(o) {
     </div>`;
   if (o.status === 'placed') return `
     <div class="card-action">
-      <span class="placed-info" style="flex:1">✅ 已放入 ${(o.locker||'').toUpperCase()}</span>
+      <span class="placed-info" style="flex:1">✅ 已放入 ${(o.locker||'').toLowerCase()}</span>
       <button class="pickup-btn" onclick="markPickedUp('${o.id}')">🎉 已取餐</button>
     </div>`;
   return `<div class="card-action"><span class="done-info">🎉 客戶已完成取餐</span></div>`;
@@ -206,7 +207,7 @@ function buildQR(o) {
   const locker = o.locker || o.id;
   try {
     new QRCode(container, {
-      text: locker.toUpperCase(),
+      text: locker.toLowerCase(),
       width: 92, height: 92,
       colorDark: '#4A2C1A', colorLight: '#FFFFFF',
       correctLevel: QRCode.CorrectLevel.M,

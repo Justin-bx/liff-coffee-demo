@@ -226,6 +226,7 @@
       <div>
         <div class="header-title" id="headerTitle">智慧格子櫃點餐</div>
         <div class="header-subtitle" id="headerSub">請選擇您的飲品</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">v1.0</div>
       </div>
     </div>
     <button class="cart-btn" id="cartBtn" onclick="goToCart()">
@@ -475,13 +476,13 @@ async function placeOrder() {
 //  QR Code 產生（內容 = 格子取餐 URL）
 // ════════════════════════════════════════
 function generateQR(orderData) {
-  document.getElementById('lockerCode').textContent = orderData.locker.toUpperCase();
+  document.getElementById('lockerCode').textContent = orderData.locker.toLowerCase();
 
   const container = document.getElementById('qrcode');
   container.innerHTML = '';
 
   new QRCode(container, {
-    text: orderData.locker.toUpperCase(),
+    text: orderData.locker.toLowerCase(),
     width: 220, height: 220,
     colorDark: '#4A2C1A', colorLight: '#FFFFFF',
     correctLevel: QRCode.CorrectLevel.M,
